@@ -39,7 +39,7 @@ def batchify_factory(max_A_len=None, max_B_len=None):
         labels = [ex.get('label', 0) for ex in batch]
         rv = {}
         rv['ids'] = ids
-        rv['labels'] = labels
+        rv['labels'] = torch.LongTensor(labels)
         Amask, Bmask = None, None
         for k in ['Atoken', 'Apos', 'Aner', 'Btoken', 'Bpos', 'Bner', 'Achar', 'Bchar']:
             batch_data = [ex[k] for ex in batch]

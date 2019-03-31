@@ -4,6 +4,7 @@ dev_file: data/preprocessed/QQPdebug/dev_spacy.jsonl
 embedding_file: ''
 epoches: 10
 fix_embeddings: false
+grad_clipping: 10
 hidden_size: 64
 meta_dir: data/preprocessed/QQPdebug/
 min_cnt: 0
@@ -14,5 +15,6 @@ result_dir: data/outputs/QQPdebug/
 rnn_layers: 2
 test_file: data/preprocessed/QQPdebug/test_spacy.jsonl
 train_file: data/preprocessed/QQPdebug/train_spacy.jsonl
+use_cuda: true
 weight_decay: 0
 word_dim: 300

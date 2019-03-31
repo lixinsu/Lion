@@ -22,7 +22,7 @@ class MatchingModel:
         self.network = get_model_class(args.network)(args)
         if args.use_cuda:
             self.network.cuda()
-        self.optimizer = self.init_optimizer()
+        self.init_optimizer()
         if state_dict is not None:
             self.network.load_state_dict(state_dict)
         if args.embedding_file and state_dict is None:
@@ -71,13 +71,13 @@ class MatchingModel:
                 if k != 'ids':
                     ex[k] = ex[k].cuda()
         logproba = self.network(ex)
-        loss = F.nll_loss(logproba, ex['lables'])
+        loss = F.nll_loss(logproba, ex['labels'])
         self.optimizer.zero_grad()
         loss.backward()
         torch.nn.utils.clip_grad_norm_(self.network.parameters(),
                                                        self.args.grad_clipping)
         self.optimizer.step()
-        self.reset_parameters()
+
         return loss.item()
 
     def train_epoch(self, data_loader):
@@ -91,7 +91,7 @@ class MatchingModel:
         # Eval mode
         self.network.eval()
         # Transfer to GPU
-        if args.use_cuda:
+        if self.args.use_cuda:
             for k in ex.keys():
                 if k != 'ids':
                     ex[k] = ex[k].cuda()
@@ -99,7 +99,7 @@ class MatchingModel:
         with torch.no_grad():
             logproba = self.network(ex)
         proba = torch.exp(logproba)
-        pred = torch.argmax(proba)
+        pred = torch.argmax(proba, dim=1)
         pred = pred.tolist()
         return pred, proba
 

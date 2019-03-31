@@ -12,7 +12,6 @@ class TestModel_1(nn.Module):
     "Basic network using stackedLSTM"
     def __init__(self, args):
         super(TestModel_1, self).__init__()
-        print(args['word_dict_size'])
         self.word_emb = nn.Embedding(args['word_dict_size'] + 1, args.word_dim)
         input_dim = args.word_dim
         self.encoder = StackedBRNN(args.word_dim,
