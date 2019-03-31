@@ -21,7 +21,6 @@ class BIMPM(nn.Module):
         self.args = args
         self.input_size = self.args['word_dim'] + int(self.args['use_char_emb']) * self.args['char_hidden_size']
         self.num_perspective = self.args['num_perspective']
-
         # ----- Word Representation Layer -----
         self.char_emb = nn.Embedding(args['char_dict_size'],args['char_dim'], padding_idx=0)
         self.word_emb = nn.Embedding(args['word_dict_size'], args['word_dim'])
@@ -39,7 +38,7 @@ class BIMPM(nn.Module):
         # ----- Context Representation Layer -----
         self.context_LSTM = nn.LSTM(
             input_size=self.input_size,
-            hidden_size=self.args['char_hidden_size'],
+            hidden_size=self.args['hidden_size'],
             num_layers=1,
             bidirectional=True,
             batch_first=True

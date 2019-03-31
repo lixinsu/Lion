@@ -28,11 +28,13 @@ rv['use_cuda'] = True
 
 # Model
 rv['max_seq_length'] = 50
+rv['max_word_length'] = 16
 rv['dropout'] = 0.1
 rv['num_perspective'] = 20
 rv['use_char_emb'] = True
 rv['char_hidden_size'] = 50
 rv['network'] = 'bimpm'
+rv['char_dim'] = 20
 rv['hidden_size'] = 100
 rv['rnn_layers'] = 2
 rv['classes'] = 2
