@@ -165,7 +165,7 @@ class ESIM(nn.Module):
         v = torch.cat([v_a_avg, v_a_max, v_b_avg, v_b_max], dim=1)
 
         logits = self._classification(v)
-        log_prob = nn.functional.softmax(logits, dim=-1)
+        log_prob = nn.functional.log_softmax(logits, dim=-1)
 
         return log_prob
 
