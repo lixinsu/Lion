@@ -29,5 +29,8 @@ def train_model(config_file):
 
 
 if __name__ == '__main__':
-    train_model('lion/configs/test_model_1.yaml')
+    # train_model('lion/configs/test_model_1.yaml')
+    train_model('lion/configs/test_bimpm_1.yaml')
+    # train_model('lion/configs/test_esim_1.yaml')
+
 

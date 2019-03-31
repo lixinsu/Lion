@@ -105,11 +105,16 @@ class MatchingModel:
 
     def predict_epoch(self, data_loader):
         rv = {}
+        acc, loss, size = 0, 0, 0
         for ex in data_loader:
             ids = ex['ids']
             preds, _ = self.predict(ex)
             for id_, pred_ in zip(ids, preds):
                 rv[id_] = pred_
+            acc += (torch.LongTensor(preds).cuda() == ex['labels']).sum().float()
+            size += len(preds)
+        acc /= size
+        logger.warning(" accuracy for eval: {}".format(acc))
         return rv
 
     def save(self, filename):
