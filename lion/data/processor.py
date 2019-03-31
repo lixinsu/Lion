@@ -37,8 +37,8 @@ def process_datum(datum, processor, label2index):
     rv = {}
     A = processor.tokenize(str(datum['A']))
     B = processor.tokenize(str(datum['B']))
-    if 'label' in rv:
-        rv['label'] = label2index[datum['label']]
+    if 'label' in datum:
+        rv['label'] = label2index[str(datum['label'])]
     rv['id'] = datum['id']
     rv['Atokens'] = A.words()
     rv['Apos'] = A.pos()

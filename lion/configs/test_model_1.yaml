@@ -1,8 +1,8 @@
 batch_size: 32
 classes: 2
-dev_file: data/preprocessed/QQPdebug/dev_spacy.jsonl
+dev_file: data/preprocessed/QQPdebug/train_spacy.jsonl
 embedding_file: ''
-epoches: 10
+epoches: 30
 fix_embeddings: false
 grad_clipping: 10
 hidden_size: 64
