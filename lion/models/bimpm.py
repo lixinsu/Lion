@@ -64,54 +64,55 @@ class BIMPM(nn.Module):
 
     def reset_parameters(self):
         # ----- Word Representation Layer -----
-        nn.init.uniform(self.char_emb.weight, -0.005, 0.005)
+        nn.init.uniform_(self.char_emb.weight, -0.005, 0.005)
         # zero vectors for padding
         self.char_emb.weight.data[0].fill_(0)
 
         # <unk> vectors is randomly initialized
-        nn.init.uniform(self.word_emb.weight.data[0], -0.1, 0.1)
+        nn.init.uniform_(self.word_emb.weight.data[0], -0.1, 0.1)
 
-        nn.init.kaiming_normal(self.char_LSTM.weight_ih_l0)
-        nn.init.constant(self.char_LSTM.bias_ih_l0, val=0)
-        nn.init.orthogonal(self.char_LSTM.weight_hh_l0)
-        nn.init.constant(self.char_LSTM.bias_hh_l0, val=0)
+        nn.init.kaiming_normal_(self.char_LSTM.weight_ih_l0)
+        nn.init.constant_(self.char_LSTM.bias_ih_l0, val=0)
+        nn.init.orthogonal_(self.char_LSTM.weight_hh_l0)
+        nn.init.constant_(self.char_LSTM.bias_hh_l0, val=0)
 
         # ----- Context Representation Layer -----
-        nn.init.kaiming_normal(self.context_LSTM.weight_ih_l0)
-        nn.init.constant(self.context_LSTM.bias_ih_l0, val=0)
-        nn.init.orthogonal(self.context_LSTM.weight_hh_l0)
-        nn.init.constant(self.context_LSTM.bias_hh_l0, val=0)
+        nn.init.kaiming_normal_(self.context_LSTM.weight_ih_l0)
+        nn.init.constant_(self.context_LSTM.bias_ih_l0, val=0)
+        nn.init.orthogonal_(self.context_LSTM.weight_hh_l0)
+        nn.init.constant_(self.context_LSTM.bias_hh_l0, val=0)
 
-        nn.init.kaiming_normal(self.context_LSTM.weight_ih_l0_reverse)
-        nn.init.constant(self.context_LSTM.bias_ih_l0_reverse, val=0)
-        nn.init.orthogonal(self.context_LSTM.weight_hh_l0_reverse)
-        nn.init.constant(self.context_LSTM.bias_hh_l0_reverse, val=0)
+        nn.init.kaiming_normal_(self.context_LSTM.weight_ih_l0_reverse)
+        nn.init.constant_(self.context_LSTM.bias_ih_l0_reverse, val=0)
+        nn.init.orthogonal_(self.context_LSTM.weight_hh_l0_reverse)
+        nn.init.constant_(self.context_LSTM.bias_hh_l0_reverse, val=0)
 
         # ----- Matching Layer -----
         for i in range(1, 9):
             w = getattr(self, f'mp_w{i}')
-            nn.init.kaiming_normal(w)
+            nn.init.kaiming_normal_(w)
 
         # ----- Aggregation Layer -----
-        nn.init.kaiming_normal(self.aggregation_LSTM.weight_ih_l0)
-        nn.init.constant(self.aggregation_LSTM.bias_ih_l0, val=0)
-        nn.init.orthogonal(self.aggregation_LSTM.weight_hh_l0)
-        nn.init.constant(self.aggregation_LSTM.bias_hh_l0, val=0)
+        nn.init.kaiming_normal_(self.aggregation_LSTM.weight_ih_l0)
+        nn.init.constant_(self.aggregation_LSTM.bias_ih_l0, val=0)
+        nn.init.orthogonal_(self.aggregation_LSTM.weight_hh_l0)
+        nn.init.constant_(self.aggregation_LSTM.bias_hh_l0, val=0)
 
-        nn.init.kaiming_normal(self.aggregation_LSTM.weight_ih_l0_reverse)
-        nn.init.constant(self.aggregation_LSTM.bias_ih_l0_reverse, val=0)
-        nn.init.orthogonal(self.aggregation_LSTM.weight_hh_l0_reverse)
-        nn.init.constant(self.aggregation_LSTM.bias_hh_l0_reverse, val=0)
+        nn.init.kaiming_normal_(self.aggregation_LSTM.weight_ih_l0_reverse)
+        nn.init.constant_(self.aggregation_LSTM.bias_ih_l0_reverse, val=0)
+        nn.init.orthogonal_(self.aggregation_LSTM.weight_hh_l0_reverse)
+        nn.init.constant_(self.aggregation_LSTM.bias_hh_l0_reverse, val=0)
 
         # ----- Prediction Layer ----
-        nn.init.uniform(self.pred_fc1.weight, -0.005, 0.005)
-        nn.init.constant(self.pred_fc1.bias, val=0)
+        nn.init.uniform_(self.pred_fc1.weight, -0.005, 0.005)
+        nn.init.constant_(self.pred_fc1.bias, val=0)
 
-        nn.init.uniform(self.pred_fc2.weight, -0.005, 0.005)
-        nn.init.constant(self.pred_fc2.bias, val=0)
+        nn.init.uniform_(self.pred_fc2.weight, -0.005, 0.005)
+        nn.init.constant_(self.pred_fc2.bias, val=0)
 
     def dropout(self, v):
-        return F.dropout(v, p=self.args['dropout'], training=self.training)
+        self.d = nn.Dropout(p=self.args['dropout'])
+        return self.d(v)
 
     def forward(self, ex):
         # ----- Word Representation Layer -----
@@ -126,8 +127,8 @@ class BIMPM(nn.Module):
             seq_len_A = ex['Achar'].size(1)
             seq_len_B = ex['Bchar'].size(1)
 
-            char_A = ex['Achar'].view(-1, self.args['max_seq_length'])
-            char_B = ex['Bchar'].view(-1, self.args['max_seq_length'])
+            char_A = ex['Achar'].view(-1, self.args['max_word_length'])
+            char_B = ex['Bchar'].view(-1, self.args['max_word_length'])
 
             # (batch * seq_len, max_word_len, char_dim)-> (1, batch * seq_len, char_hidden_size)
             _, (char_A, _) = self.char_LSTM(self.char_emb(char_A))
@@ -143,7 +144,6 @@ class BIMPM(nn.Module):
 
         A = self.dropout(A)
         B = self.dropout(B)
-
         # ----- Context Representation Layer -----
         # (batch, seq_len, hidden_size * 2)
         context_A, _ = self.context_LSTM(A)
