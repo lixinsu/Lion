@@ -23,11 +23,11 @@ class BIMPM(nn.Module):
         self.num_perspective = self.args['num_perspective']
         # ----- Word Representation Layer -----
         self.char_emb = nn.Embedding(args['char_dict_size'],args['char_dim'], padding_idx=0)
-        self.word_emb = nn.Embedding(args['word_dict_size'], args['word_dim'])
-        # initialize word embedding with GloVe
-        # self.word_emb.weight.data.copy_(data.TEXT.vocab.vectors)
+        self.word_embedding = nn.Embedding(args['word_dict_size'], args['word_dim'])
+        # initialize word word_embedding with GloVe
+        # self.word_embedding.weight.data.copy_(data.TEXT.vocab.vectors)
         # no fine-tuning for word vectors
-        self.word_emb.weight.requires_grad = False
+        self.word_embedding.weight.requires_grad = False
 
         self.char_LSTM = nn.LSTM(
             input_size=self.args['char_dim'],
@@ -68,7 +68,7 @@ class BIMPM(nn.Module):
         self.char_emb.weight.data[0].fill_(0)
 
         # <unk> vectors is randomly initialized
-        nn.init.uniform_(self.word_emb.weight.data[0], -0.1, 0.1)
+        nn.init.uniform_(self.word_embedding.weight.data[0], -0.1, 0.1)
 
         nn.init.kaiming_normal_(self.char_LSTM.weight_ih_l0)
         nn.init.constant_(self.char_LSTM.bias_ih_l0, val=0)
@@ -116,8 +116,8 @@ class BIMPM(nn.Module):
     def forward(self, ex):
         # ----- Word Representation Layer -----
         # (batch, seq_len) -> (batch, seq_len, word_dim)
-        A = self.word_emb(ex['Atoken'])
-        B = self.word_emb(ex['Btoken'])
+        A = self.word_embedding(ex['Atoken'])
+        B = self.word_embedding(ex['Btoken'])
 
 
 

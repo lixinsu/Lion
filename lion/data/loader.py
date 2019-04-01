@@ -34,6 +34,8 @@ class SortedBatchSampler(data.Sampler):
 
 
 def batchify_factory(max_A_len=None, max_B_len=None):
+    if (not max_A_len) and (not max_B_len):
+        max_A_len, max_B_len = 256, 256
     def batchify(batch):
         ids = [ex['id'] for ex in batch]
         labels = [ex.get('label', 0) for ex in batch]
@@ -41,6 +43,7 @@ def batchify_factory(max_A_len=None, max_B_len=None):
         rv['ids'] = ids
         rv['labels'] = torch.LongTensor(labels)
         Amask, Bmask = None, None
+
         for k in ['Atoken', 'Apos', 'Aner', 'Btoken', 'Bpos', 'Bner', 'Achar', 'Bchar']:
             batch_data = [ex[k] for ex in batch]
             unified_max_len = max_A_len if 'A' in k else max_B_len      # For CNN model with fixed length on whole dataset
