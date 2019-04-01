@@ -100,8 +100,7 @@ class MatchingModel:
             logproba = self.network(ex)
         proba = torch.exp(logproba)
         pred = torch.argmax(proba, dim=1)
-        pred = pred.tolist()
-        return pred, proba
+        return pred.tolist(), proba.tolist()
 
     def predict_epoch(self, data_loader):
         rv = {}
@@ -117,9 +116,30 @@ class MatchingModel:
         logger.warning(" accuracy for eval: {}".format(acc))
         return rv
 
+    def evaluate_epoch(self, data_loader):
+        all_pred = []
+        all_gt = []
+        all_proba = []
+        for ex in data_loader:
+            ids = ex['ids']
+            preds, proba = self.predict(ex)
+            all_pred.extend(preds)
+            all_proba.extend(proba)
+            gts = ex['labels'].tolist()
+            all_gt.extend(gts)
+        print(all_gt)
+        print(all_proba)
+
+        print(sum(np.array(all_gt) == np.array(all_pred) ))
+
+        print(len(all_gt))
+        #logger.info('accuracy_score {}'.format(accuracy_score(all_gt, all_pred)))
+        #logger.info('f1_score {}'.format(f1_score(all_gt, all_pred)))
+
     def save(self, filename):
         if self.parallel:
             network = self.network.module
+
         else:
             network = self.network
         state_dict = copy.copy(network.state_dict())

@@ -9,6 +9,7 @@ from lion.data.dataset import LionDataset
 from lion.data.vocab import Dictionary
 from lion.common.param import Param
 from lion.training.model import MatchingModel
+from lion.common.logger import prepare_logger
 
 
 def train_model(config_file):
@@ -23,7 +24,7 @@ def train_model(config_file):
     model = MatchingModel(args, state_dict=None)
     for epoch in range(args.epoches):
         model.train_epoch(train_loader)
-        res = model.predict_epoch(dev_loader)
+        model.evaluate_epoch(dev_loader)
         if args.visualization:
             pass
 
