@@ -13,7 +13,7 @@ class Attention(nn.Module):
     def __init__(self):
         super(Attention, self).__init__()
 
-    def forward(self, v1, v2, w=None, mask=None):
+    def forward(self, v1, v2, v1_mask=None, v2_mask=None):
         pass
 
 
@@ -29,7 +29,7 @@ class BasicAttention(Attention):
          >>> assert list(out.size()) == [1, 2, 3]
     """
 
-    def forward(self, v1, v2, w=None, mask=None):
+    def forward(self, v1, v2, v1_mask=None, v2_mask=None):
         """
         :param v1: (batch, seq_len1, hidden_size)
         :param v2: (batch, seq_len2, hidden_size)
@@ -59,11 +59,7 @@ class SoftmaxAttention(Attention):
     conversely for the elements of the premises.
     """
 
-    def forward(self,
-                premise_batch,
-                premise_mask,
-                hypothesis_batch,
-                hypothesis_mask):
+    def forward(self, v1, v2, v1_mask=None, v2_mask=None):
         """
         Args:
             premise_batch: A batch of sequences of vectors representing the
@@ -85,16 +81,15 @@ class SoftmaxAttention(Attention):
             attended_hypotheses: The sequences of attention vectors for the
                 hypotheses in the input batch.
         """
-        similarity_matrix = premise_batch.bmm(hypothesis_batch.transpose(2, 1)
-                                                              .contiguous())
+        similarity_matrix = v1.bmm(v2.transpose(2, 1).contiguous())
 
-        prem_hyp_attn = F.softmax(similarity_matrix.masked_fill(premise_mask.unsqueeze(2), -float('inf')), dim=1)
-        hyp_prem_attn = F.softmax(similarity_matrix.masked_fill(hypothesis_mask.unsqueeze(1), -float('inf')), dim=2)
+        prem_hyp_attn = F.softmax(similarity_matrix.masked_fill(v1_mask.unsqueeze(2), -float('inf')), dim=1)
+        hyp_prem_attn = F.softmax(similarity_matrix.masked_fill(v2_mask.unsqueeze(1), -float('inf')), dim=2)
 
-        attended_premises = hyp_prem_attn.bmm(hypothesis_batch)
-        attended_hypotheses = prem_hyp_attn.transpose(1, 2).bmm(premise_batch)
+        attended_premises = hyp_prem_attn.bmm(v2)
+        attended_hypotheses = prem_hyp_attn.transpose(1, 2).bmm(v1)
 
-        attended_premises.masked_fill_(premise_mask.unsqueeze(2), 0)
-        attended_hypotheses.masked_fill_(hypothesis_mask.unsqueeze(2), 0)
+        attended_premises.masked_fill_(v1_mask.unsqueeze(2), 0)
+        attended_hypotheses.masked_fill_(v2_mask.unsqueeze(2), 0)
 
         return attended_premises, attended_hypotheses

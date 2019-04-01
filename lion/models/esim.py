@@ -42,7 +42,7 @@ class ESIM(nn.Module):
         self.num_classes = args['classes']
         self.dropout = args['dropout']
 
-        self._word_embedding = nn.Embedding(self.vocab_size + 1,
+        self.word_embedding = nn.Embedding(self.vocab_size + 1,
                                             self.embedding_dim,
                                             padding_idx=0,
                                             _weight=None)
@@ -96,8 +96,8 @@ class ESIM(nn.Module):
         premises_mask = ex['Amask']
         hypotheses_mask = ex['Bmask']
 
-        embedded_premises = self._word_embedding(premises)
-        embedded_hypotheses = self._word_embedding(hypotheses)
+        embedded_premises = self.word_embedding(premises)
+        embedded_hypotheses = self.word_embedding(hypotheses)
 
         if self.dropout:
             embedded_premises = self._rnn_dropout(embedded_premises)
@@ -109,8 +109,8 @@ class ESIM(nn.Module):
                                             hypotheses_mask)
 
         attended_premises, attended_hypotheses =\
-            self._attention(encoded_premises, premises_mask,
-                            encoded_hypotheses, hypotheses_mask)
+            self._attention(encoded_premises, encoded_hypotheses,
+                            premises_mask, hypotheses_mask)
 
         enhanced_premises = torch.cat([encoded_premises,
                                        attended_premises,

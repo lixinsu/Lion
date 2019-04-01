@@ -17,8 +17,9 @@ def train_model(config_file):
     for vocab_name in ['char', 'word', 'pos', 'ner']:
         vocab_ = Dictionary.load(osp.join(args.meta_dir, '{}.json'.format(vocab_name)), min_cnt=args.min_cnt)
         args.update({'{}_dict_size'.format(vocab_name): len(vocab_)})
-    train_dataset = LionDataset(args.train_file, args.meta_dir)
-    dev_dataset = LionDataset(args.dev_file, args.meta_dir)
+        args.update({'{}_dict'.format(vocab_name): vocab_})
+    train_dataset = LionDataset(args, split='train')
+    dev_dataset = LionDataset(args, split='dev')
     train_loader = prepare_loader(train_dataset, args, split='train')
     dev_loader = prepare_loader(dev_dataset, args, split='dev')
     model = MatchingModel(args, state_dict=None)

@@ -20,6 +20,7 @@ class MatchingModel:
     def __init__(self, args, state_dict=None):
         self.args = args
         self.network = get_model_class(args.network)(args)
+        args.use_cuda = args.use_cuda if torch.cuda.is_available() else False
         if args.use_cuda:
             self.network.cuda()
         self.init_optimizer()
@@ -48,10 +49,9 @@ class MatchingModel:
             raise RuntimeError('Unsupported optimizer: %s' %
                                self.args.optimizer)
 
-
     def load_embedding(self, words, embedding_file):
-        words =  {w for w in words if w in self.word_dict}
-        embedding = self.network.embedding.weight.data
+        words = {w for w in words if w in self.args.word_dict}
+        embedding = self.network.word_embedding.weight.data
         with open(embedding_file) as f:
             line = f.readline().rstrip().split(' ')
             if len(line) != 2:
@@ -59,10 +59,10 @@ class MatchingModel:
             for line in f:
                 parsed = line.rstrip().split(' ')
                 assert(len(parsed) == embedding.size(1) + 1)
-                w = self.word_dict.normalize(parsed[0])
+                w = self.args.word_dict.normalize(parsed[0])
                 if w in words:
                     vec = torch.Tensor([float(i) for i in parsed[1:]])
-                    embedding[self.word_dict[w]].copy_(vec)
+                    embedding[self.args.word_dict[w]].copy_(vec)
 
     def update(self, ex):
         self.network.train()
