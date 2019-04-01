@@ -46,7 +46,7 @@ def batchify_factory(max_A_len=None, max_B_len=None):
             unified_max_len = max_A_len if 'A' in k else max_B_len      # For CNN model with fixed length on whole dataset
             current_max_len = max([d.size(0) for d in batch_data])
             max_len = unified_max_len or current_max_len
-            if 'char' not in
+            if 'char' not in k:
                 padded_data = torch.LongTensor(len(batch_data), max_len).fill_(0)
             else:
                 padded_data = torch.LongTensor(len(batch_data), max_len, 16).fill_(0)
