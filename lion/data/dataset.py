@@ -46,7 +46,7 @@ class LionDataset(Dataset):
 
         def make_char(char_dict, token, word_length=16):
             if len(token) > 16:
-                return [char_dict(t_) for t_ in token[:8]] + [char_dict(t_) for t_ in token[-8:]]
+                return [char_dict[t_] for t_ in token[:8]] + [char_dict[t_] for t_ in token[-8:]]
             else:
                 rv = [0] * 16
                 for i in range(len(token)):
