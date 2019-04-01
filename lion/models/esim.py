@@ -33,8 +33,6 @@ class ESIM(nn.Module):
                 Defaults to 0.5.
             num_classes: The number of classes in the output of the network.
                 Defaults to 3.
-            device: The name of the device on which the model is being
-                executed. Defaults to 'cpu'.
         """
         super(ESIM, self).__init__()
 
@@ -43,8 +41,6 @@ class ESIM(nn.Module):
         self.hidden_size = args['hidden_size']
         self.num_classes = args['classes']
         self.dropout = args['dropout']
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") \
-            if args['use_cuda'] else "cpu"
 
         self._word_embedding = nn.Embedding(self.vocab_size + 1,
                                             self.embedding_dim,

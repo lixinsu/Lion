@@ -48,7 +48,7 @@ class BasicAttention(Attention):
         return div_with_small_value(a, d)
 
 
-class SoftmaxAttention(nn.Module):
+class SoftmaxAttention(Attention):
     """
     Attention layer taking premises and hypotheses encoded by an RNN as input
     and computing the soft attention between their elements.
