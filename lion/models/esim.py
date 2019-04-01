@@ -1,18 +1,14 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-"""
-Definition of the ESIM model.
-"""
-# Aurelien Coet, 2018.
-
 import torch
 import torch.nn as nn
+from torch.nn import functional as F
 
 from lion.modules.dropout import RNNDropout
-from lion.modules.seq2seq_encoder import Seq2SeqEncoder
+#from lion.modules.seq2seq_encoder import Seq2SeqEncoder
+from lion.modules.stacked_rnn import StackedBRNN
 from lion.modules.attention import SoftmaxAttention
-from lion.modules.utils import replace_masked
 
 
 class ESIM(nn.Module):
@@ -50,19 +46,17 @@ class ESIM(nn.Module):
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") \
             if args['use_cuda'] else "cpu"
 
-        self._word_embedding = nn.Embedding(self.vocab_size + 1, # +1
+        self._word_embedding = nn.Embedding(self.vocab_size + 1,
                                             self.embedding_dim,
                                             padding_idx=0,
                                             _weight=None)
 
         if self.dropout:
             self._rnn_dropout = RNNDropout(p=self.dropout)
-            # self._rnn_dropout = nn.Dropout(p=self.dropout)
 
-        self._encoding = Seq2SeqEncoder(nn.LSTM,
-                                        self.embedding_dim,
-                                        self.hidden_size,
-                                        bidirectional=True)
+        self._encoding = StackedBRNN(self.embedding_dim, self.hidden_size, 1,
+                            dropout_rate=0, dropout_output=False, rnn_type=nn.LSTM,
+                            concat_layers=False, padding=False)
 
         self._attention = SoftmaxAttention()
 
@@ -70,10 +64,9 @@ class ESIM(nn.Module):
                                                    self.hidden_size),
                                          nn.ReLU())
 
-        self._composition = Seq2SeqEncoder(nn.LSTM,
-                                           self.hidden_size,
-                                           self.hidden_size,
-                                           bidirectional=True)
+        self._composition = StackedBRNN(self.hidden_size, self.hidden_size, 1,
+                            dropout_rate=0, dropout_output=False, rnn_type=nn.LSTM,
+                            concat_layers=False, padding=False)
 
         self._classification = nn.Sequential(nn.Dropout(p=self.dropout),
                                              nn.Linear(2*4*self.hidden_size,
@@ -92,13 +85,9 @@ class ESIM(nn.Module):
             premises: A batch of varaible length sequences of word indices
                 representing premises. The batch is assumed to be of size
                 (batch, premises_length).
-            premises_lengths: A 1D tensor containing the lengths of the
-                premises in 'premises'.
             hypothesis: A batch of varaible length sequences of word indices
                 representing hypotheses. The batch is assumed to be of size
                 (batch, hypotheses_length).
-            hypotheses_lengths: A 1D tensor containing the lengths of the
-                hypotheses in 'hypotheses'.
 
         Returns:
             logits: A tensor of size (batch, num_classes) containing the
@@ -110,8 +99,6 @@ class ESIM(nn.Module):
         hypotheses = ex['Btoken']
         premises_mask = ex['Amask']
         hypotheses_mask = ex['Bmask']
-        premises_lengths = torch.sum(ex['Amask'], dim=1)
-        hypotheses_lengths = torch.sum(ex['Bmask'], dim=1)
 
         embedded_premises = self._word_embedding(premises)
         embedded_hypotheses = self._word_embedding(hypotheses)
@@ -121,9 +108,9 @@ class ESIM(nn.Module):
             embedded_hypotheses = self._rnn_dropout(embedded_hypotheses)
 
         encoded_premises = self._encoding(embedded_premises,
-                                          premises_lengths)
+                                          premises_mask)
         encoded_hypotheses = self._encoding(embedded_hypotheses,
-                                            hypotheses_lengths)
+                                            hypotheses_mask)
 
         attended_premises, attended_hypotheses =\
             self._attention(encoded_premises, premises_mask,
@@ -136,10 +123,8 @@ class ESIM(nn.Module):
                                       dim=-1)
         enhanced_hypotheses = torch.cat([encoded_hypotheses,
                                          attended_hypotheses,
-                                         encoded_hypotheses -
-                                         attended_hypotheses,
-                                         encoded_hypotheses *
-                                         attended_hypotheses],
+                                         encoded_hypotheses - attended_hypotheses,
+                                         encoded_hypotheses * attended_hypotheses],
                                         dim=-1)
 
         projected_premises = self._projection(enhanced_premises)
@@ -149,24 +134,27 @@ class ESIM(nn.Module):
             projected_premises = self._rnn_dropout(projected_premises)
             projected_hypotheses = self._rnn_dropout(projected_hypotheses)
 
-        v_ai = self._composition(projected_premises, premises_lengths)
-        v_bj = self._composition(projected_hypotheses, hypotheses_lengths)
+        v_ai = self._composition(projected_premises, premises_mask)
+        v_bj = self._composition(projected_hypotheses, hypotheses_mask)
 
-        v_a_avg = torch.sum(v_ai * premises_mask.unsqueeze(1)
-                                                .transpose(2, 1), dim=1)\
-            / torch.sum(premises_mask, dim=1, keepdim=True)
-        v_b_avg = torch.sum(v_bj * hypotheses_mask.unsqueeze(1)
-                                                  .transpose(2, 1), dim=1)\
-            / torch.sum(hypotheses_mask, dim=1, keepdim=True)
+        reversed_premises_mask = (1-premises_mask).float()
+        reversed_hypotheses_mask = (1 - hypotheses_mask).float()
 
-        v_a_max, _ = replace_masked(v_ai, premises_mask, -1e7).max(dim=1)
-        v_b_max, _ = replace_masked(v_bj, hypotheses_mask, -1e7).max(dim=1)
+        v_a_avg = torch.sum(v_ai * reversed_premises_mask.unsqueeze(2), dim=1)\
+            / torch.sum(reversed_premises_mask, dim=1, keepdim=True)
+        v_b_avg = torch.sum(v_bj * reversed_hypotheses_mask.unsqueeze(2), dim=1)\
+            / torch.sum(reversed_hypotheses_mask, dim=1, keepdim=True)
+
+        v_ai = v_ai.masked_fill(premises_mask.unsqueeze(2), -1e7)
+        v_bj = v_bj.masked_fill(hypotheses_mask.unsqueeze(2), -1e7)
+
+        v_a_max, _ = v_ai.max(dim=1)
+        v_b_max, _ = v_bj.max(dim=1)
 
         v = torch.cat([v_a_avg, v_a_max, v_b_avg, v_b_max], dim=1)
 
         logits = self._classification(v)
         log_prob = nn.functional.log_softmax(logits, dim=-1)
-
         return log_prob
 
 
