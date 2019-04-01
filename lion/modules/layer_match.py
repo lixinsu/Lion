@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from lion.nn.utils import div_with_small_value
+from .utils import div_with_small_value
 
 
 class LayerMatch(nn.Module):

@@ -7,7 +7,7 @@ import torch.nn.functional as F
 
 from lion.modules.layer_match import FullLayerMatch, MaxPoolingLayerMatch
 from lion.modules.attention import BasicAttention
-from lion.nn.utils import div_with_small_value
+from lion.modules.utils import div_with_small_value
 
 
 class BIMPM(nn.Module):

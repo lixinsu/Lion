@@ -12,7 +12,7 @@ import torch.nn as nn
 from lion.modules.dropout import RNNDropout
 from lion.modules.seq2seq_encoder import Seq2SeqEncoder
 from lion.modules.attention import SoftmaxAttention
-from lion.nn.utils import get_mask, replace_masked
+from lion.modules.utils import replace_masked
 
 
 class ESIM(nn.Module):

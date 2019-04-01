@@ -4,7 +4,7 @@
 import torch
 import torch.nn as nn
 
-from lion.nn.utils import div_with_small_value
+from .utils import div_with_small_value, masked_softmax, weighted_sum
 
 
 class Attention(nn.Module):

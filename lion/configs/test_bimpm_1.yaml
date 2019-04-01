@@ -1,5 +1,6 @@
-batch_size: 32
-char_hidden_size: 5
+batch_size: 64
+char_dim: 20
+char_hidden_size: 50
 classes: 2
 dev_file: data/preprocessed/QQPdebug/dev_spacy.jsonl
 dropout: 0.1
@@ -7,10 +8,12 @@ embedding_file: ''
 epoches: 10
 fix_embeddings: false
 grad_clipping: 10
-hidden_size: 64
+hidden_size: 100
+max_seq_length: 50
+max_word_length: 16
 meta_dir: data/preprocessed/QQPdebug/
 min_cnt: 0
-network: test_model_1
+network: bimpm
 num_perspective: 20
 num_workers: 2
 optimizer: adamax

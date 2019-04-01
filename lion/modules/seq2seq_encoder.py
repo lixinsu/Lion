@@ -1,6 +1,6 @@
 import torch.nn as nn
 
-from lion.nn.utils import sort_by_seq_lens
+from .utils import sort_by_seq_lens
 
 
 class Seq2SeqEncoder(nn.Module):

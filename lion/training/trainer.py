@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-
+import sys
 import os.path as osp
 
 from lion.data.loader import prepare_loader
@@ -29,8 +29,7 @@ def train_model(config_file):
 
 
 if __name__ == '__main__':
-    # train_model('lion/configs/test_model_1.yaml')
-    train_model('lion/configs/test_bimpm_1.yaml')
-    # train_model('lion/configs/test_esim_1.yaml')
+    train_model(sys.argv[1])
+
 
 
