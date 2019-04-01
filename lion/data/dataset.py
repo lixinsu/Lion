@@ -44,8 +44,12 @@ class LionDataset(Dataset):
         ner_dict = self.ner_dict
         if not self.length_limit and len(ex['Atokens']) > self.length_limit:
             ex['Atokens'] = ex['Atokens'][0:self.length_limit]
+            ex['Apos'] = ex['Apos'][0:self.length_limit]
+            ex['Aner'] = ex['Aner'][0:self.length_limit]
         if not self.length_limit and len(ex['Btokens']) > self.length_limit:
             ex['Btokens'] = ex['Btokens'][0:self.length_limit]
+            ex['Bpos'] = ex['Bpos'][0:self.length_limit]
+            ex['Bner'] = ex['Bner'][0:self.length_limit]
         Atoken = torch.LongTensor([word_dict[w] for w in ex['Atokens']])
         Btoken = torch.LongTensor([word_dict[w] for w in ex['Btokens']])
 
