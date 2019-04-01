@@ -20,7 +20,8 @@ class MatchingModel:
     def __init__(self, args, state_dict=None):
         self.args = args
         self.network = get_model_class(args.network)(args)
-        if args.use_cuda and torch.cuda.is_available():
+        args.use_cuda = args.use_cuda if torch.cuda.is_available() else False
+        if args.use_cuda:
             self.network.cuda()
         self.init_optimizer()
         if state_dict is not None:
@@ -50,7 +51,7 @@ class MatchingModel:
 
     def load_embedding(self, words, embedding_file):
         words = {w for w in words if w in self.args.word_dict}
-        embedding = self.network.embedding.weight.data
+        embedding = self.network.word_embedding.weight.data
         with open(embedding_file) as f:
             line = f.readline().rstrip().split(' ')
             if len(line) != 2:
