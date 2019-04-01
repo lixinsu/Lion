@@ -3,8 +3,9 @@
 
 import torch
 import torch.nn as nn
+from torch.nn import functional as F
 
-from .utils import div_with_small_value, masked_softmax, weighted_sum
+from .utils import div_with_small_value
 
 
 class Attention(nn.Module):
@@ -47,7 +48,7 @@ class BasicAttention(Attention):
         return div_with_small_value(a, d)
 
 
-class SoftmaxAttention(nn.Module):
+class SoftmaxAttention(Attention):
     """
     Attention layer taking premises and hypotheses encoded by an RNN as input
     and computing the soft attention between their elements.
@@ -84,24 +85,16 @@ class SoftmaxAttention(nn.Module):
             attended_hypotheses: The sequences of attention vectors for the
                 hypotheses in the input batch.
         """
-        # Dot product between premises and hypotheses in each sequence of
-        # the batch.
         similarity_matrix = premise_batch.bmm(hypothesis_batch.transpose(2, 1)
                                                               .contiguous())
 
-        # Softmax attention weights.
-        prem_hyp_attn = masked_softmax(similarity_matrix, hypothesis_mask)
-        hyp_prem_attn = masked_softmax(similarity_matrix.transpose(1, 2)
-                                                        .contiguous(),
-                                       premise_mask)
+        prem_hyp_attn = F.softmax(similarity_matrix.masked_fill(premise_mask.unsqueeze(2), -float('inf')), dim=1)
+        hyp_prem_attn = F.softmax(similarity_matrix.masked_fill(hypothesis_mask.unsqueeze(1), -float('inf')), dim=2)
 
-        # Weighted sums of the hypotheses for the the premises attention,
-        # and vice-versa for the attention of the hypotheses.
-        attended_premises = weighted_sum(hypothesis_batch,
-                                         prem_hyp_attn,
-                                         premise_mask)
-        attended_hypotheses = weighted_sum(premise_batch,
-                                           hyp_prem_attn,
-                                           hypothesis_mask)
+        attended_premises = hyp_prem_attn.bmm(hypothesis_batch)
+        attended_hypotheses = prem_hyp_attn.transpose(1, 2).bmm(premise_batch)
+
+        attended_premises.masked_fill_(premise_mask.unsqueeze(2), 0)
+        attended_hypotheses.masked_fill_(hypothesis_mask.unsqueeze(2), 0)
 
         return attended_premises, attended_hypotheses
