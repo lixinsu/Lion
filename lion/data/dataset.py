@@ -10,15 +10,22 @@ from torch.utils.data.dataset import Dataset
 from lion.data.vocab import Dictionary
 
 
-
 class LionDataset(Dataset):
 
-    def __init__(self, filename, meta_dir):
-        self.examples = [json.loads(line) for line in open(filename)]
-        self.word_dict = Dictionary.load(osp.join(meta_dir, 'word.json'))
-        self.char_dict = Dictionary.load(osp.join(meta_dir, 'char.json'))
-        self.pos_dict =  Dictionary.load(osp.join(meta_dir, 'pos.json'))
-        self.ner_dict = Dictionary.load(osp.join(meta_dir, 'ner.json'))
+    def __init__(self, args, split='train'):
+        if split == 'train':
+            self.examples = [json.loads(line) for line in open(args.train_file)]
+        elif split == 'dev':
+            self.examples = [json.loads(line) for line in open(args.dev_file)]
+        elif split == 'test':
+            self.examples = [json.loads(line) for line in open(args.test_file)]
+        else:
+            raise ValueError("split must be set with train, dev or test!")
+        self.length_limit = args.length_limit
+        self.word_dict = Dictionary.load(osp.join(args.meta_dir, 'word.json'))
+        self.char_dict = Dictionary.load(osp.join(args.meta_dir, 'char.json'))
+        self.pos_dict = Dictionary.load(osp.join(args.meta_dir, 'pos.json'))
+        self.ner_dict = Dictionary.load(osp.join(args.meta_dir, 'ner.json'))
 
     def __len__(self):
         return len(self.examples)
@@ -35,6 +42,10 @@ class LionDataset(Dataset):
         char_dict = self.char_dict
         pos_dict = self.pos_dict
         ner_dict = self.ner_dict
+        if len(ex['Atokens']) > self.length_limit:
+            ex['Atokens'] = ex['Atokens'][0:self.length_limit]
+        if len(ex['Btokens']) > self.length_limit:
+            ex['Btokens'] = ex['Btokens'][0:self.length_limit]
         Atoken = torch.LongTensor([word_dict[w] for w in ex['Atokens']])
         Btoken = torch.LongTensor([word_dict[w] for w in ex['Btokens']])
 
