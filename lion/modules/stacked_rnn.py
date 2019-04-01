@@ -10,8 +10,6 @@ class StackedBRNN(nn.Module):
     and concat the hidden states between layers. (i.e. the output hidden size
     for each sequence input is num_layers * hidden_size).
     """
-    """
-    """
     def __init__(self, input_size, hidden_size, num_layers,
                  dropout_rate=0, dropout_output=False, rnn_type=nn.LSTM,
                  concat_layers=False, padding=False):

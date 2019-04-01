@@ -122,12 +122,10 @@ class MatchingModel:
             all_proba.extend(proba)
             gts = ex['labels'].tolist()
             all_gt.extend(gts)
-        print(all_gt)
-        print(all_proba)
 
-        print(sum(np.array(all_gt) == np.array(all_pred) ))
-
-        print(len(all_gt))
+        c = sum(np.array(all_gt) == np.array(all_pred) )
+        n = len(all_gt)
+        print('{}/{} = {}'.format(c, n, c/n))
         #logger.info('accuracy_score {}'.format(accuracy_score(all_gt, all_pred)))
         #logger.info('f1_score {}'.format(f1_score(all_gt, all_pred)))
 
