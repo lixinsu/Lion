@@ -12,7 +12,8 @@ rv['train_file'] = 'data/preprocessed/QQPdebug/train_spacy.jsonl'
 rv['dev_file'] = 'data/preprocessed/QQPdebug/train_spacy.jsonl'
 rv['test_file'] = 'data/preprocessed/QQPdebug/test_spacy.jsonl'
 rv['result_dir'] = 'data/outputs/QQPdebug/'
-rv['embedding_file'] = ''
+# rv['embedding_file'] = ''
+rv['embedding_file'] = '/home/fanyixing/users/mxy/coqa-baselines/wordvecs/glove.42B.300d.txt'
 
 # General
 rv['batch_size'] = 64
