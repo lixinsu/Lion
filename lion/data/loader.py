@@ -33,9 +33,7 @@ class SortedBatchSampler(data.Sampler):
         return len(self.lengths)
 
 
-def batchify_factory(max_A_len=None, max_B_len=None):
-    if (not max_A_len) and (not max_B_len):
-        max_A_len, max_B_len = 256, 256
+def batchify_factory(max_A_len=None, max_B_len=None, length_limit=None):
     def batchify(batch):
         ids = [ex['id'] for ex in batch]
         labels = [ex.get('label', 0) for ex in batch]
@@ -43,12 +41,13 @@ def batchify_factory(max_A_len=None, max_B_len=None):
         rv['ids'] = ids
         rv['labels'] = torch.LongTensor(labels)
         Amask, Bmask = None, None
-
         for k in ['Atoken', 'Apos', 'Aner', 'Btoken', 'Bpos', 'Bner', 'Achar', 'Bchar']:
             batch_data = [ex[k] for ex in batch]
             unified_max_len = max_A_len if 'A' in k else max_B_len      # For CNN model with fixed length on whole dataset
             current_max_len = max([d.size(0) for d in batch_data])
-            max_len = unified_max_len if current_max_len > unified_max_len else current_max_len
+            if not length_limit and current_max_len > length_limit:
+                continue
+            max_len = unified_max_len or current_max_len
             if 'char' not in k:
                 padded_data = torch.LongTensor(len(batch_data), max_len).fill_(0)
             else:
@@ -88,7 +87,7 @@ def prepare_loader(dataset, args, split='train'):
         batch_size=args.batch_size,
         sampler=sampler,
         num_workers=args.num_workers,
-        collate_fn=batchify_factory(args.max_A_len, args.max_B_len),
+        collate_fn=batchify_factory(args.max_A_len, args.max_B_len, args.length_limit),
         pin_memory=True,
     )
     return loader
