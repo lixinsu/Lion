@@ -22,10 +22,11 @@ class LionDataset(Dataset):
         else:
             raise ValueError("split must be set with train, dev or test!")
         self.length_limit = args.length_limit
-        self.word_dict = Dictionary.load(osp.join(args.meta_dir, 'word.json'))
-        self.char_dict = Dictionary.load(osp.join(args.meta_dir, 'char.json'))
-        self.pos_dict = Dictionary.load(osp.join(args.meta_dir, 'pos.json'))
-        self.ner_dict = Dictionary.load(osp.join(args.meta_dir, 'ner.json'))
+        self.word_dict = args.word_dict
+        self.char_dict = args.char_dict
+        self.pos_dict = args.pos_dict
+        self.ner_dict = args.ner_dict
+        self.label_dict = args.labelmapping
 
     def __len__(self):
         return len(self.examples)
@@ -42,11 +43,11 @@ class LionDataset(Dataset):
         char_dict = self.char_dict
         pos_dict = self.pos_dict
         ner_dict = self.ner_dict
-        if not self.length_limit and len(ex['Atokens']) > self.length_limit:
+        if self.length_limit and len(ex['Atokens']) > self.length_limit:
             ex['Atokens'] = ex['Atokens'][0:self.length_limit]
             ex['Apos'] = ex['Apos'][0:self.length_limit]
             ex['Aner'] = ex['Aner'][0:self.length_limit]
-        if not self.length_limit and len(ex['Btokens']) > self.length_limit:
+        if self.length_limit and len(ex['Btokens']) > self.length_limit:
             ex['Btokens'] = ex['Btokens'][0:self.length_limit]
             ex['Bpos'] = ex['Bpos'][0:self.length_limit]
             ex['Bner'] = ex['Bner'][0:self.length_limit]

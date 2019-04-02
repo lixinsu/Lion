@@ -14,10 +14,11 @@ from lion.common.logger import prepare_logger
 
 def train_model(config_file):
     args = Param.load(config_file)
-    for vocab_name in ['char', 'word', 'pos', 'ner']:
+    for vocab_name in ['char', 'word', 'pos', 'ner', 'labelmapping']:
         vocab_ = Dictionary.load(osp.join(args.meta_dir, '{}.json'.format(vocab_name)), min_cnt=args.min_cnt)
         args.update({'{}_dict_size'.format(vocab_name): len(vocab_)})
         args.update({'{}_dict'.format(vocab_name): vocab_})
+    args.update({'classes': len(args['labelmapping_dict'])})
     train_dataset = LionDataset(args, split='train')
     dev_dataset = LionDataset(args, split='dev')
     train_loader = prepare_loader(train_dataset, args, split='train')
