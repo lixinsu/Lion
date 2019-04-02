@@ -19,7 +19,7 @@ def convert_dataset(indir, outdir):
 
 
 def transform(infile, outfile, split='test'):
-    df = pd.read_csv(infile, sep='\t',error_bad_lines=False)
+    df = pd.read_csv(infile, sep='\t', error_bad_lines=False)
     if split != 'test':
         sub_df = df[['id', 'question1', 'question2', 'is_duplicate']]
         sub_df.columns = ['id', 'A', 'B', 'label']
