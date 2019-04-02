@@ -35,7 +35,7 @@ class MatchingModel:
             state_dict: network parameters
         """
         if self.args.fix_embeddings:
-            for p in self.network.embedding.parameters():
+            for p in self.network.word_embedding.parameters():
                 p.requires_grad = False
         parameters = [p for p in self.network.parameters() if p.requires_grad]
         if self.args.optimizer == 'sgd':
