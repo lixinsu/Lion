@@ -39,12 +39,12 @@ def transform(infile, outfile, split='test'):
             if split != 'test':
                 result.append({"id": id,
                                "A": premise,
-                               "B": hypothesis})
+                               "B": hypothesis,
+                               "label": label})
             else:
                 result.append({"id": id,
                                "A": premise,
-                               "B": hypothesis,
-                               "label": label})
+                               "B": hypothesis})
     open(outfile, 'w').write('\n'.join([json.dumps(datum) for datum in result]))
 
 
