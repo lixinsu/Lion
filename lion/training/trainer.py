@@ -29,10 +29,29 @@ def train_model(config_file):
         model.evaluate_epoch(dev_loader)
         if args.visualization:
             pass
+    model.save(osp.join(args['result_dir'], 'pytorch_model.bin'))
+
+
+def evaluate(config_file):
+    args = Param.load(config_file)
+    model = load_model(osp.join(args['result_dir'], 'pytorch_model.bin'))
+    dev_dataset = LionDataset(args, split='dev')
+    dev_loader = prepare_loader(dev_dataset, args, split='dev')
+    model.evaluate_epoch(dev_loader)
+
+
+def predict(config_file):
+    args = Param.load(config_file)
+    model = load_model(osp.join(args['result_dir'], 'pytorch_model.bin'))
+    test_dataset = LionDataset(args, split='dev')
+    test_loader = prepare_loader(test_dataset, args, split='dev')
+    model.predict_epoch(test_loader)
+
+
+def load_model(file_name):
+    model = MatchingModel.load(file_name)
+    return model
 
 
 if __name__ == '__main__':
     train_model(sys.argv[1])
-
-
-
