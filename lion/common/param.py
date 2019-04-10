@@ -10,12 +10,16 @@ class Param:
 
     def __getitem__(self, key):
         if key not in self.kv:
-            raise "Undefined parameters"
+            raise ValueError("Undefined parameters {}".format(key))
         return self.kv[key]
 
-    def __getattr__(self, name):
-        if name in self.kv:
-            return self.kv[name]
+    def __getattr__(self, key):
+        if key in self.kv:
+            return self.kv[key]
+        raise ValueError("Undefined parameters {}".format(key))
+
+    def __contains__(self, key):
+        return True if key in self.kv else False
 
     def update(self, new_kvs):
         self.kv.update(new_kvs)
@@ -24,6 +28,12 @@ class Param:
         for k,v in new_kvs:
             if k not in self.kv:
                 self.kv[k] = v
+
+    def __getstate__(self):
+        return self.kv
+
+    def __setstate__(self, d):
+        self.kv = d
 
     @classmethod
     def load(cls, config_file):

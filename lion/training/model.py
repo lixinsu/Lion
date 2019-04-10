@@ -3,6 +3,7 @@
 
 import logging
 import numpy as np
+import copy
 
 from tqdm import tqdm
 import torch
@@ -35,7 +36,7 @@ class MatchingModel:
             state_dict: network parameters
         """
         if self.args.fix_embeddings:
-            for p in self.network.embedding.parameters():
+            for p in self.network.word_embedding.parameters():
                 p.requires_grad = False
         parameters = [p for p in self.network.parameters() if p.requires_grad]
         if self.args.optimizer == 'sgd':
@@ -122,15 +123,14 @@ class MatchingModel:
             all_proba.extend(proba)
             gts = ex['labels'].tolist()
             all_gt.extend(gts)
-
+        print(all_pred)
         c = sum(np.array(all_gt) == np.array(all_pred) )
         n = len(all_gt)
         print('{}/{} = {}'.format(c, n, c/n))
-        #logger.info('accuracy_score {}'.format(accuracy_score(all_gt, all_pred)))
-        #logger.info('f1_score {}'.format(f1_score(all_gt, all_pred)))
+        return {'acc': c/n}
 
     def save(self, filename):
-        if self.parallel:
+        if self.args.parallel:
             network = self.network.module
 
         else:
@@ -140,6 +140,7 @@ class MatchingModel:
             'state_dict': state_dict,
             'args': self.args,
         }
+        torch.save(params, filename)
         try:
             torch.save(params, filename)
         except BaseException:
@@ -153,14 +154,14 @@ class MatchingModel:
         )
         state_dict = saved_params['state_dict']
         args = saved_params['args']
-        return MatchingModel(args, state_dict)
+        return MatchingModel(args, state_dict), args
 
 
     def parallelize(self):
         """Use data parallel to copy the model across several gpus.
         This will take all gpus visible with CUDA_VISIBLE_DEVICES.
         """
-        self.parallel = True
+        self.args.parallel = True
         self.network = torch.nn.DataParallel(self.network)
 
 
