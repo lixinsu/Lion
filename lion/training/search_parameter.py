@@ -7,6 +7,7 @@ from subprocess import check_call
 import sys
 import copy
 import yaml
+import random
 
 
 
@@ -16,6 +17,8 @@ parser.add_argument('--parent_dir', default='experiments/', required=True,
                     help='Directory containing params.yaml')
 parser.add_argument('--random', action='store_true',
                     help='Random hyper-parameter search')
+parser.add_argument('--ratio', type=float, default=0.5,
+                    help='Random hyper-parameter search')
 
 
 def launch_training_job(parent_dir, job_name, params):
@@ -24,17 +27,18 @@ def launch_training_job(parent_dir, job_name, params):
         os.makedirs(model_dir)
     json_path = os.path.join(model_dir, 'params.yaml')
     yaml.dump(params, open(json_path, 'w'), default_flow_style=False)
-    cmd = "{python} lion/training/trainer.py --output_dir={model_dir}".format(python=PYTHON, model_dir=model_dir)
+    cmd = "{python} lion/training/trainer.py --train --output_dir={model_dir}".format(python=PYTHON, model_dir=model_dir)
     print(cmd)
-    #check_call(cmd, shell=True)
+    check_call(cmd, shell=True)
 
+
+def _format_name(ks, vs):
+    return '_'.join(['{}-{}'.format(k,v) for k,v in zip(ks, vs)])
 
 
 def dfs_params(params, param_keys, param_values):
-    def format_name(ks, vs):
-        return '_'.join(['{}-{}'.format(k,v) for k,v in zip(ks, vs)])
     if len(param_keys) == len(param_values):
-        job_name = format_name(param_keys, param_values)
+        job_name = _format_name(param_keys, param_values)
         run_params = copy.copy(basic_params)
         run_params.update(dict(zip(param_keys, param_values)))
         launch_training_job(args.parent_dir, job_name, run_params)
@@ -45,6 +49,28 @@ def dfs_params(params, param_keys, param_values):
         param_values.pop()
 
 
+def _count_cases(params):
+    rv = 1
+    for v in params.values():
+            rv *= len(v)
+    return rv
+
+
+def random_params(params, param_keys, ratio=0.5):
+    total = _count_cases(params)
+    total =  int(total * ratio)
+    tried = set()
+    while len(tried) < total:
+        param_values = []
+        for key in param_keys:
+            param_values.append(random.choice(params[key]))
+        if tuple(param_values) in tried:
+            continue
+        tried.add(tuple(param_values))
+        job_name  = _format_name(param_keys, param_values)
+        run_params = copy.copy(basic_params)
+        run_params.update(dict(zip(param_keys, param_values)))
+        launch_training_job(args.parent_dir, job_name, run_params)
 
 
 if __name__ == "__main__":
@@ -55,13 +81,8 @@ if __name__ == "__main__":
     tuned_param_path = os.path.join(args.parent_dir, 'tuned_params.yaml')
     assert os.path.isfile(tuned_param_path), "No tuned params configuration file"
     tuned_params = yaml.load(open(tuned_param_path))
+    param_keys = list(tuned_params.keys())
     if not args.random:
-        param_keys = list(tuned_params.keys())
         dfs_params(tuned_params, param_keys, [])
-
-#1    param_keys = tuned_params.keys()
-#1    param_values = []
-#1    if args.random:
-#1        for param_key in param_keys:
-#1            param_values.append(random.choice(tuned_params[param_key]))
-#1
+    else:
+        random_params(tuned_params, param_keys, ratio=0.5)
