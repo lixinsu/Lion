@@ -85,4 +85,4 @@ if __name__ == "__main__":
     if not args.random:
         dfs_params(tuned_params, param_keys, [])
     else:
-        random_params(tuned_params, param_keys, ratio=0.5)
+        random_params(tuned_params, param_keys, ratio=args.ratio)

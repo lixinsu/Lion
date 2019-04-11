@@ -69,7 +69,7 @@ def train(output_dir):
         print('loss {}'.format(loss))
         writer.add_scalar('train/loss', loss, epoch)
         result = model.evaluate_epoch(dev_loader)
-        writer.add_scalars('dev/metric_group', result, epoch)
+        writer.add_scalar('dev/acc', result['acc'], epoch)
         if result['acc'] > best_metric:
             best_metric = result['acc']
             model.save(osp.join(args.output_dir,'best_model.bin'))
