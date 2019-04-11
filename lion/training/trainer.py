@@ -11,6 +11,8 @@ from lion.common.param import Param
 from lion.training.model import MatchingModel
 from lion.common.logger import prepare_logger
 
+logger = prepare_logger()
+
 
 def train_model(config_file):
     args = Param.load(config_file)
@@ -32,6 +34,7 @@ def train_model(config_file):
 
 
 if __name__ == '__main__':
+    logger.info("hello, Lion!")
     train_model(sys.argv[1])
 
 
