@@ -116,13 +116,12 @@ def predict(output_dir, test_file):
     id2label = {}
     for label, index in json.load(open(osp.join(args.meta_dir, 'labelmapping.json'))).items():
         id2label[index] = label
-    labels = [id2label[pred] for id, pred in rv]
     for key, value in rv.items():
         rv[key] = id2label[value]
     predict_file = osp.join(output_dir, 'predictions.json')
     if osp.isfile(predict_file):
         logger.warning('Will overwrite original predictions')
-    json.dump(labels, open(predict_file, 'w'))
+    json.dump(rv, open(predict_file, 'w'))
 
 
 def load_model(file_name):
