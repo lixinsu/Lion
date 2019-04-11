@@ -57,6 +57,10 @@ def check_fill_parameters(args, split='train'):
 
 
 def train(output_dir):
+    """Train model.
+
+    :param output_dir: the model path which to save
+    """
     config_file = osp.join(output_dir, 'params.yaml')
     args = Param.load(config_file)
     args = check_fill_parameters(args, split='train')
@@ -85,23 +89,40 @@ def train(output_dir):
 
 
 def evaluate(output_dir, dev_file):
+    """Evaluate Model.
+
+    :param output_dir: the model path
+    :param dev_file: the dev file path
+    """
     model, args = load_model(osp.join(output_dir, MODEL_FILE))
     args = check_fill_parameters(args, split='dev')
     dev_dataset = LionDataset(dev_file, args)
     dev_loader = prepare_loader(dev_dataset, args, split='dev')
-    model.evaluate_epoch(dev_loader)
+    result = model.evaluate_epoch(dev_loader)
+    print("Acc : {}".format(result['acc']))
 
 
 def predict(output_dir, test_file):
+    """Predict.
+
+    :param output_dir: the model path
+    :param test_file: the test file path
+    """
     model, args = load_model(osp.join(output_dir, MODEL_FILE))
     args = check_fill_parameters(args, split='test')
     test_dataset = LionDataset(test_file, args)
     test_loader = prepare_loader(test_dataset, args, split='dev')
     rv = model.predict_epoch(test_loader)
+    id2label = {}
+    for label, index in json.load(open(osp.join(args.meta_dir, 'labelmapping.json'))).items():
+        id2label[index] = label
+    labels = [id2label[pred] for id, pred in rv]
+    for key, value in rv.items():
+        rv[key] = id2label[value]
     predict_file = osp.join(output_dir, 'predictions.json')
     if osp.isfile(predict_file):
         logger.warning('Will overwrite original predictions')
-    json.dump(rv, open(predict_file, 'w'))
+    json.dump(labels, open(predict_file, 'w'))
 
 
 def load_model(file_name):
