@@ -12,7 +12,7 @@ from lion.data.vocab import Dictionary
 
 class LionDataset(Dataset):
 
-    def __init__(self, data_file, args, split='train'):
+    def __init__(self, data_file, args):
         self.examples = [json.loads(line) for line in open(data_file)]
         self.length_limit = args.length_limit
         self.word_dict = args.word_dict

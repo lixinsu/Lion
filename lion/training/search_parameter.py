@@ -1,15 +1,12 @@
 #!/usr/bin/env python
 # coding: utf-8
-
-import argparse
 import os
-from subprocess import check_call
 import sys
 import copy
 import yaml
 import random
-
-
+import argparse
+from subprocess import check_call
 
 PYTHON = sys.executable
 parser = argparse.ArgumentParser()

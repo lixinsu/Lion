@@ -15,7 +15,7 @@ from lion.common.param import Param
 from lion.training.model import MatchingModel
 from lion.common.logger import prepare_logger
 
-
+MODEL_FILE = 'best_model.bin'
 DEFAULTS = {'batch_size': 32,
             'epoches': 20,
             'use_cuda': False,
@@ -39,18 +39,27 @@ def fill_default_parameters(args):
     return args
 
 
-def check_fill_parameters_for_train(args):
-    critical_keys = {'network', 'meta_dir', 'train_file', 'dev_file'}
+def check_fill_parameters(args, split='train'):
+    critical_keys = {'network', 'meta_dir'}
     for k in critical_keys:
         if k not in args:
-            raise "Please input {} in config file"
+            raise ValueError("Please input {} in config file".format(k))
+    if split == 'train':
+        if 'train_file' not in args:
+            raise ValueError("Train Mode must specify 'train_file' in config file")
+    elif split == 'dev':
+        if 'dev_file' not in args:
+            raise ValueError("Evaluate Mode must specify 'dev_file' in config file")
+    elif split == 'test':
+        if 'test_file' not in args:
+            raise ValueError("Predict Mode must specify 'test_file' in config file")
     return fill_default_parameters(args)
 
 
 def train(output_dir):
     config_file = osp.join(output_dir, 'params.yaml')
     args = Param.load(config_file)
-    args = check_fill_parameters_for_train(args)
+    args = check_fill_parameters(args, split='train')
     args.update({'output_dir': output_dir})
     writer = SummaryWriter(args.output_dir)
     for vocab_name in ['char', 'word', 'pos', 'ner', 'labelmapping']:
@@ -58,8 +67,8 @@ def train(output_dir):
         args.update({'{}_dict_size'.format(vocab_name): len(vocab_)})
         args.update({'{}_dict'.format(vocab_name): vocab_})
     args.update({'classes': len(args['labelmapping_dict'])})
-    train_dataset = LionDataset(args.train_file, args, split='train')
-    dev_dataset = LionDataset(args.dev_file, args, split='dev')
+    train_dataset = LionDataset(args.train_file, args)
+    dev_dataset = LionDataset(args.dev_file, args)
     train_loader = prepare_loader(train_dataset, args, split='train')
     dev_loader = prepare_loader(dev_dataset, args, split='dev')
     model = MatchingModel(args, state_dict=None)
@@ -72,19 +81,21 @@ def train(output_dir):
         writer.add_scalar('dev/acc', result['acc'], epoch)
         if result['acc'] > best_metric:
             best_metric = result['acc']
-            model.save(osp.join(args.output_dir,'best_model.bin'))
+            model.save(osp.join(args.output_dir, MODEL_FILE))
 
 
 def evaluate(output_dir, dev_file):
-    model, args = load_model(osp.join(output_dir, 'best_model.bin'))
-    dev_dataset = LionDataset(dev_file, args, split='dev')
+    model, args = load_model(osp.join(output_dir, MODEL_FILE))
+    args = check_fill_parameters(args, split='dev')
+    dev_dataset = LionDataset(dev_file, args)
     dev_loader = prepare_loader(dev_dataset, args, split='dev')
     model.evaluate_epoch(dev_loader)
 
 
 def predict(output_dir, test_file):
-    model, args = load_model(osp.join(output_dir, 'best_model.bin'))
-    test_dataset = LionDataset(test_file, args, split='dev')
+    model, args = load_model(osp.join(output_dir, MODEL_FILE))
+    args = check_fill_parameters(args, split='test')
+    test_dataset = LionDataset(test_file, args)
     test_loader = prepare_loader(test_dataset, args, split='dev')
     rv = model.predict_epoch(test_loader)
     predict_file = osp.join(output_dir, 'predictions.json')
@@ -95,8 +106,8 @@ def predict(output_dir, test_file):
 
 def load_model(file_name):
     if not osp.isfile(file_name):
-        raise "Model file not exit"
-    return  MatchingModel.load(file_name)
+        raise ValueError("Model file not exit")
+    return MatchingModel.load(file_name)
 
 
 if __name__ == '__main__':
@@ -110,7 +121,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     config_file = osp.join(args.output_dir, 'params.yaml')
     if not osp.isfile(config_file):
-        raise "Please put a config file `params.yaml` in output_dir"
+        raise ValueError("Please put a config file `params.yaml` in output_dir")
     print(args)
     if args.train:
         train(args.output_dir)
@@ -119,4 +130,4 @@ if __name__ == '__main__':
     elif args.predict:
         predict(args.output_dir, args.test_file)
     else:
-        raise "At least one of train evaluate predict shoud be true"
+        raise ValueError("At least one of train evaluate predict shoud be true")
