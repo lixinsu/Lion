@@ -1,0 +1,5 @@
+dev_file: data/preprocessed/QQPdebug/train_spacy.jsonl
+meta_dir: data/preprocessed/QQPdebug/
+train_file: data/preprocessed/QQPdebug/train_spacy.jsonl
+embedding_file: ""
+network: esim

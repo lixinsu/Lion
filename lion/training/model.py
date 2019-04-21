@@ -3,6 +3,7 @@
 
 import logging
 import numpy as np
+import copy
 
 from tqdm import tqdm
 import torch
@@ -122,15 +123,13 @@ class MatchingModel:
             all_proba.extend(proba)
             gts = ex['labels'].tolist()
             all_gt.extend(gts)
-
         c = sum(np.array(all_gt) == np.array(all_pred) )
         n = len(all_gt)
         print('{}/{} = {}'.format(c, n, c/n))
-        #logger.info('accuracy_score {}'.format(accuracy_score(all_gt, all_pred)))
-        #logger.info('f1_score {}'.format(f1_score(all_gt, all_pred)))
+        return {'acc': c/n}
 
     def save(self, filename):
-        if self.parallel:
+        if self.args.parallel:
             network = self.network.module
 
         else:
@@ -153,14 +152,5 @@ class MatchingModel:
         )
         state_dict = saved_params['state_dict']
         args = saved_params['args']
-        return MatchingModel(args, state_dict)
-
-
-    def parallelize(self):
-        """Use data parallel to copy the model across several gpus.
-        This will take all gpus visible with CUDA_VISIBLE_DEVICES.
-        """
-        self.parallel = True
-        self.network = torch.nn.DataParallel(self.network)
-
+        return MatchingModel(args, state_dict), args
 

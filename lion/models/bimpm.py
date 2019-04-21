@@ -15,10 +15,20 @@ class BIMPM(nn.Module):
     Implementation of the BIMPM model presented in the paper "Bilateral Multi-Perspective
     Matching for Natural Language Sentences" by Wang et al.
     """
+    MODEL_DEFAULTS = {'max_word_length': 16,
+                        'dropout': 0.1,
+                        'num_perspective': 20,
+                        'use_char_emb': True,
+                        'char_hidden_size': 50,
+                        'char_dim': 20,
+                        'hidden_size': 100,
+                        'rnn_layers': 2,
+                        'word_dim': 300}
 
     def __init__(self, args):
         super(BIMPM, self).__init__()
         self.args = args
+        self.fill_default_parameters()
         self.input_size = self.args['word_dim'] + int(self.args['use_char_emb']) * self.args['char_hidden_size']
         self.num_perspective = self.args['num_perspective']
         # ----- Word Representation Layer -----
@@ -60,6 +70,11 @@ class BIMPM(nn.Module):
         self.pred_fc2 = nn.Linear(self.args['hidden_size'] * 2, self.args['classes'])
 
         self.reset_parameters()
+
+    def fill_default_parameters(self):
+        for k, v in BIMPM.MODEL_DEFAULTS.items():
+            if k not in self.args:
+                self.args.update({k: v})
 
     def reset_parameters(self):
         # ----- Word Representation Layer -----
