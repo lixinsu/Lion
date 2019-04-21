@@ -12,21 +12,13 @@ from lion.data.vocab import Dictionary
 
 class LionDataset(Dataset):
 
-    def __init__(self, args, split='train'):
-        if split == 'train':
-            self.examples = [json.loads(line) for line in open(args.train_file)]
-        elif split == 'dev':
-            self.examples = [json.loads(line) for line in open(args.dev_file)]
-        elif split == 'test':
-            self.examples = [json.loads(line) for line in open(args.test_file)]
-        else:
-            raise ValueError("split must be set with train, dev or test!")
+    def __init__(self, data_file, args):
+        self.examples = [json.loads(line) for line in open(data_file)]
         self.length_limit = args.length_limit
         self.word_dict = args.word_dict
         self.char_dict = args.char_dict
         self.pos_dict = args.pos_dict
         self.ner_dict = args.ner_dict
-        self.label_dict = args.labelmapping
 
     def __len__(self):
         return len(self.examples)

@@ -17,6 +17,10 @@ class ESIM(nn.Module):
     Natural Language Inference" by Chen et al.
     """
 
+    MODEL_DEFAULTS = {'dropout': 0.1,
+                      'hidden_size': 100,
+                      'word_dim': 300}
+
     def __init__(self, args):
         """
         Args:
@@ -35,7 +39,8 @@ class ESIM(nn.Module):
                 Defaults to 3.
         """
         super(ESIM, self).__init__()
-
+        self.args = args
+        self.fill_default_parameters()
         self.vocab_size = args['word_dict_size']
         self.embedding_dim = args['word_dim']
         self.hidden_size = args['hidden_size']
@@ -74,6 +79,11 @@ class ESIM(nn.Module):
 
         # Initialize all weights and biases in the model.
         self.apply(_init_esim_weights)
+
+    def fill_default_parameters(self):
+        for k, v in ESIM.MODEL_DEFAULTS.items():
+            if k not in self.args:
+                self.args.update({k: v})
 
     def forward(self, ex):
         """
