@@ -123,7 +123,6 @@ class MatchingModel:
             all_proba.extend(proba)
             gts = ex['labels'].tolist()
             all_gt.extend(gts)
-        # print(all_pred)
         c = sum(np.array(all_gt) == np.array(all_pred) )
         n = len(all_gt)
         print('{}/{} = {}'.format(c, n, c/n))
@@ -154,13 +153,4 @@ class MatchingModel:
         state_dict = saved_params['state_dict']
         args = saved_params['args']
         return MatchingModel(args, state_dict), args
-
-    # TODO: process parallel
-    def parallelize(self):
-        """Use data parallel to copy the model across several gpus.
-        This will take all gpus visible with CUDA_VISIBLE_DEVICES.
-        """
-        self.args.parallel = True
-        self.network = torch.nn.DataParallel(self.network)
-
 
