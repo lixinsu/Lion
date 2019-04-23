@@ -88,8 +88,14 @@ def train(output_dir):
             model.save(osp.join(args.output_dir, MODEL_FILE))
 
 
+<<<<<<< HEAD
+if __name__ == '__main__':
+    logger.info("hello, Lion!")
+    train_model(sys.argv[1])
+=======
 def evaluate(output_dir, dev_file):
     """Evaluate Model.
+>>>>>>> master
 
     :param output_dir: the model path
     :param dev_file: the dev file path
