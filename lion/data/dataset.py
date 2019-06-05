@@ -6,6 +6,7 @@ import os.path as osp
 
 import torch
 from torch.utils.data.dataset import Dataset
+from loguru import logger
 
 from lion.data.vocab import Dictionary
 
@@ -13,12 +14,19 @@ from lion.data.vocab import Dictionary
 class LionDataset(Dataset):
 
     def __init__(self, data_file, args):
-        self.examples = [json.loads(line) for line in open(data_file)]
+        self.examples = self._load_json(data_file)
         self.length_limit = args.length_limit
         self.word_dict = args.word_dict
         self.char_dict = args.char_dict
         self.pos_dict = args.pos_dict
         self.ner_dict = args.ner_dict
+
+    def _load_json(self, data_file):
+        data = [json.loads(line) for line in open(data_file)]
+        ori = len(data)
+        data = [d for d in data if (len(d['Atokens']) < 512 and len(d['Btokens']) < 512)]
+        logger.info('{} filter {} abnormal instance'.format(data_file, ori - len(data)))
+        return data
 
     def __len__(self):
         return len(self.examples)
