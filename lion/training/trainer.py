@@ -16,7 +16,7 @@ from lion.training.model import MatchingModel
 from lion.common.logger import prepare_logger
 
 MODEL_FILE = 'best_model.bin'
-DEFAULTS = {'batch_size': 32,
+DEFAULTS = {'batch_size': 62,
             'epoches': 20,
             'use_cuda': False,
             'parallel': False,
@@ -45,8 +45,8 @@ def check_fill_parameters(args, split='train'):
         if k not in args:
             raise ValueError("Please input {} in config file".format(k))
     if split == 'train':
-        if 'train_file' not in args:
-            raise ValueError("Train Mode must specify 'train_file' in config file")
+        if 'train_file' not in args or 'dev_file' not in args:
+            raise ValueError("Train Mode must specify train_file and dev_file in config file")
     elif split == 'dev':
         if 'dev_file' not in args:
             raise ValueError("Evaluate Mode must specify 'dev_file' in config file")
@@ -63,6 +63,7 @@ def train(output_dir):
     """
     config_file = osp.join(output_dir, 'params.yaml')
     args = Param.load(config_file)
+    print(args)
     args = check_fill_parameters(args, split='train')
     args.update({'output_dir': output_dir})
     writer = SummaryWriter(args.output_dir)
