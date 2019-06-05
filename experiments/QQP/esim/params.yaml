@@ -1,5 +1,5 @@
-dev_file: data/preprocessed/QQPdebug/train_spacy.jsonl
-meta_dir: data/preprocessed/QQPdebug/
-train_file: data/preprocessed/QQPdebug/train_spacy.jsonl
-embedding_file: ""
+dev_file: data/preprocessed/QQP/dev_spacy.jsonl
+meta_dir: data/preprocessed/QQP/
+train_file: data/preprocessed/QQP/train_spacy.jsonl
+embedding_file: data/embeddings/glove.840B.300d.txt
 network: esim
