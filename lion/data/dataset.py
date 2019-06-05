@@ -6,6 +6,7 @@ import os.path as osp
 
 import torch
 from torch.utils.data.dataset import Dataset
+from loguru import logger
 
 from lion.data.vocab import Dictionary
 
@@ -24,7 +25,7 @@ class LionDataset(Dataset):
         data = [json.loads(line) for line in open(data_file)]
         ori = len(data)
         data = [d for d in data if (len(d['Atokens']) < 512 and len(d['Btokens']) < 512)]
-        print('{} filter {}'.format(data_file, ori - len(data)))
+        logger.info('{} filter {} abnormal instance'.format(data_file, ori - len(data)))
         return data
 
     def __len__(self):
