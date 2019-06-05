@@ -56,8 +56,8 @@ dropout:
   </tr>
   <tr>
     <td align="center", bgcolor=#eeeeee> Esim </td>
-    <td align="center", bgcolor=#eeeeee> - </td>
-    <td align="center", bgcolor=#eeeeee> - </td>
+    <td align="center", bgcolor=#eeeeee> 88.4 </td>
+    <td align="center", bgcolor=#eeeeee> 87.4 </td>
   </tr>
 
 </table>
