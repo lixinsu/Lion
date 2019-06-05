@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-import logging
 import numpy as np
 import copy
 
@@ -9,12 +8,10 @@ from tqdm import tqdm
 import torch
 import torch.optim as optim
 import torch.nn.functional as F
+from loguru import logger
 
 from lion.common.utils import AverageMeter
 from lion.models import get_model_class
-
-
-logger = logging.getLogger(__name__)
 
 
 class MatchingModel:
@@ -125,7 +122,7 @@ class MatchingModel:
             all_gt.extend(gts)
         c = sum(np.array(all_gt) == np.array(all_pred) )
         n = len(all_gt)
-        print('{}/{} = {}'.format(c, n, c/n))
+        logger.info('{}/{} = {}'.format(c, n, c/n))
         return {'acc': c/n}
 
     def save(self, filename):

@@ -15,8 +15,9 @@ from lion.common.param import Param
 from lion.training.model import MatchingModel
 from lion.common.logger import prepare_logger
 
+
 MODEL_FILE = 'best_model.bin'
-DEFAULTS = {'batch_size': 62,
+DEFAULTS = {'batch_size': 32,
             'epoches': 20,
             'use_cuda': False,
             'parallel': False,
@@ -63,7 +64,7 @@ def train(output_dir):
     """
     config_file = osp.join(output_dir, 'params.yaml')
     args = Param.load(config_file)
-    print(args)
+    logger.info('\n' + str(args))
     args = check_fill_parameters(args, split='train')
     args.update({'output_dir': output_dir})
     writer = SummaryWriter(args.output_dir)
@@ -80,7 +81,7 @@ def train(output_dir):
     best_metric = 0
     for epoch in range(args.epoches):
         loss = model.train_epoch(train_loader)
-        print('loss {}'.format(loss))
+        logger.info('loss {}'.format(loss))
         writer.add_scalar('train/loss', loss, epoch)
         result = model.evaluate_epoch(dev_loader)
         writer.add_scalar('dev/acc', result['acc'], epoch)
@@ -99,7 +100,7 @@ def evaluate(output_dir, dev_file):
     dev_dataset = LionDataset(dev_file, args)
     dev_loader = prepare_loader(dev_dataset, args, split='dev')
     result = model.evaluate_epoch(dev_loader)
-    print("Acc : {}".format(result['acc']))
+    logger.info("Acc : {}".format(result['acc']))
 
 
 def predict(output_dir, test_file):
@@ -142,8 +143,9 @@ if __name__ == '__main__':
     config_file = osp.join(args.output_dir, 'params.yaml')
     if not osp.isfile(config_file):
         raise ValueError("Please put a config file `params.yaml` in output_dir")
-    print(args)
     if args.train:
+        logger = prepare_logger(osp.join(args.output_dir, 'train.log'))
+        logger.info('Save model in {}'.format(args.output_dir))
         train(args.output_dir)
     elif args.evaluate:
         evaluate(args.output_dir, args.dev_file)
