@@ -35,6 +35,10 @@ class Param:
     def __setstate__(self, d):
         self.kv = d
 
+    def __str__(self):
+        return '\n'.join(['{} = {}'.format(k,v) for k,v in self.kv.items()])
+
+
     @classmethod
     def load(cls, config_file):
         return cls(yaml.load(open(config_file)))
