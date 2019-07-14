@@ -5,6 +5,7 @@
 from .test_model_1 import TestModel_1
 from .bimpm import BIMPM
 from .esim import ESIM
+from .bert import BertForSequenceClassification
 
 
 def get_model_class(name):
@@ -14,4 +15,6 @@ def get_model_class(name):
         return BIMPM
     if name == 'esim':
         return ESIM
+    if name == 'bert':
+        return BertForSequenceClassification
     raise RuntimeError('Invalid model %s' % name)

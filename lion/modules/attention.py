@@ -16,7 +16,7 @@ class Attention(nn.Module):
         super(Attention, self).__init__()
 
     def forward(self, v1, v2, v1_mask=None, v2_mask=None):
-        pass
+        raise NotImplementedError
 
 
 class BasicAttention(Attention):
@@ -110,7 +110,6 @@ class MultiHeadedAttention(Attention):
         self.query = nn.Linear(dim_model, self.all_head_size)
         self.key = nn.Linear(dim_model, self.all_head_size)
         self.value = nn.Linear(dim_model, self.all_head_size)
-        self.atten = BasicAttention()
         self.dropout = nn.Dropout(dropout_prob)
 
     def split_heads(self, x):

@@ -1,3 +1,5 @@
+import copy
+
 import torch.nn as nn
 
 from lion.modules.mlp import MLP
@@ -8,7 +10,8 @@ from lion.modules.attention import MultiHeadedAttention
 class BertEncoder(nn.Module):
     def __init__(self, config):
         super(BertEncoder, self).__init__()
-        layer = SubLayer(config)
+        layer = SubLayer(config.num_attention_heads, config.hidden_size, config.intermediate_size,
+                         config.hidden_dropout_prob, config.hidden_act, config.layer_norm_eps)
         self.layer = nn.ModuleList([copy.deepcopy(layer) for _ in range(config.num_hidden_layers)])
 
     def forward(self, hidden_states, attention_mask, output_all_encoded_layers=True):
@@ -24,17 +27,17 @@ class BertEncoder(nn.Module):
 
 
 class SubLayer(nn.Module):
-    def __init__(self, num_head, dim_model, dim_out, dropout_prob=0.1, act='relu', eps=1e-9):
+    def __init__(self, num_head, dim_model, dim_out, dropout_prob=0.1, act='relu', eps=1e-12):
         super(SubLayer, self).__init__()
         self.attention = MultiHeadedAttention(num_head, dim_model, dropout_prob)
-        self.sub_output = SubLayer(dim_model, dropout_prob, eps)
+        self.sub_output = SublayerOutput(dim_model, dropout_prob, eps)
         self.intermediate = MLP(dim_model, dim_out, act)
         self.output = EncoderOutput(dim_out, dim_model, dropout_prob, eps)
 
     def forward(self, hidden_states, attention_mask):
         # embedding_output, extended_attention_mask
         # attention_output.size == embedding_output.size == b*s*h
-        attention_output = self.attention(hidden_states, attention_mask)
+        attention_output = self.attention(v1=hidden_states, v1_mask=attention_mask)
         sublayer_output = self.sub_output(attention_output, hidden_states)
         intermediate_output = self.intermediate(sublayer_output)
         layer_output = self.output(intermediate_output, attention_output)
@@ -49,7 +52,7 @@ class SublayerOutput(nn.Module):
     def __init__(self, size, dropout, eps):
         super(SublayerOutput, self).__init__()
         self.dense = nn.Linear(size, size)
-        self.norm = LayerNorm(size, eps)
+        self.LayerNorm = LayerNorm(size, eps)
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, hidden_states, x):

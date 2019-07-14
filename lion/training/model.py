@@ -11,13 +11,17 @@ import torch.nn.functional as F
 from loguru import logger
 
 from lion.common.utils import AverageMeter
+from lion.training.optimizers import BertAdam
 from lion.models import get_model_class
 
 
 class MatchingModel:
     def __init__(self, args, state_dict=None):
         self.args = args
-        self.network = get_model_class(args.network)(args)
+        if args.network == 'bert':
+            self.network = get_model_class(args.network).from_pretrained(args.model_dir, args.classes)
+        else:
+            self.network = get_model_class(args.network)(args)
         args.use_cuda = args.use_cuda if torch.cuda.is_available() else False
         if args.use_cuda:
             self.network.cuda()
@@ -43,6 +47,18 @@ class MatchingModel:
         elif self.args.optimizer == 'adamax':
             self.optimizer = optim.Adamax(parameters,
                                           weight_decay=self.args.weight_decay)
+        elif self.args.optimizer == 'bert-adam':
+            list_param_optimizer = list(self.network.named_parameters())
+            no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
+            optimizer_grouped_parameters = [
+                {'params': [p for n, p in list_param_optimizer if not any(nd in n for nd in no_decay)],
+                 'weight_decay': 0.01},
+                {'params': [p for n, p in list_param_optimizer if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
+            ]
+            self.optimizer = BertAdam(optimizer_grouped_parameters,
+                                      lr=self.args.learning_rate,
+                                      warmup=self.args.warmup_proportion,
+                                      t_total=self.args.num_train_optimization_steps)
         else:
             raise RuntimeError('Unsupported optimizer: %s' %
                                self.args.optimizer)
@@ -73,7 +89,7 @@ class MatchingModel:
         self.optimizer.zero_grad()
         loss.backward()
         torch.nn.utils.clip_grad_norm_(self.network.parameters(),
-                                                       self.args.grad_clipping)
+                                       self.args.grad_clipping)
         self.optimizer.step()
 
         return loss.item()

@@ -219,10 +219,20 @@ class BertTokenizer(Tokenizer):
         if self.do_basic_tokenize:
             for token in self.basic_tokenizer.tokenize(text):
                 for sub_token in self.wordpiece_tokenizer.tokenize(token):
-                    split_tokens.append(sub_token)
+                    # split_tokens.append(sub_token)
+                    split_tokens.append((
+                        sub_token,
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                    ))
         else:
             split_tokens = self.wordpiece_tokenizer.tokenize(text)
-        return split_tokens
+        # return split_tokens
+        # Set special option for non-entity tag: '' vs 'O' in spaCy
+        return Tokens(split_tokens, opts={'non_ent': ''})
 
     def convert_tokens_to_ids(self, tokens):
         """Converts a sequence of tokens into ids using the vocab."""

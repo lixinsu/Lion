@@ -27,6 +27,7 @@ DEFAULTS = {'batch_size': 32,
             'min_cnt': 0,
             'grad_clipping': 10,
             'weight_decay': 0,
+            'embedding_file': None,
             'fix_embeddings': True,
             'sorted': True,
             'max_A_len': None,
@@ -69,7 +70,10 @@ def train(output_dir):
     args.update({'output_dir': output_dir})
     writer = SummaryWriter(args.output_dir)
     for vocab_name in ['char', 'word', 'pos', 'ner', 'labelmapping']:
-        vocab_ = Dictionary.load(osp.join(args.meta_dir, '{}.json'.format(vocab_name)), min_cnt=args.min_cnt)
+        if vocab_name == 'word' and 'vocab_file' in args:
+            vocab_ = Dictionary.load_txt(args.vocab_file)
+        else:
+            vocab_ = Dictionary.load_json(osp.join(args.meta_dir, '{}.json'.format(vocab_name)), min_cnt=args.min_cnt)
         args.update({'{}_dict_size'.format(vocab_name): len(vocab_)})
         args.update({'{}_dict'.format(vocab_name): vocab_})
     args.update({'classes': len(args['labelmapping_dict'])})

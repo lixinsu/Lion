@@ -1,0 +1,10 @@
+dev_file: data/preprocessed/SNLIdebug/dev_bert.jsonl
+meta_dir: data/preprocessed/SNLIdebug/
+train_file: data/preprocessed/SNLIdebug/train_bert.jsonl
+network: bert
+fix_embeddings: false
+use_cuda: true
+batch_size: 6
+epoches: 3
+model_dir: ../pytorch-pretrained-BERT/examples/output/bert-base-uncased/
+vocab_file: ../pytorch-pretrained-BERT/examples/output/bert-base-uncased/vocab.txt
