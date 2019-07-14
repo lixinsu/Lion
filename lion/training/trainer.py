@@ -2,6 +2,7 @@
 # coding: utf-8
 
 import sys
+import math
 import os.path as osp
 import argparse
 import json
@@ -78,6 +79,8 @@ def train(output_dir):
         args.update({'{}_dict'.format(vocab_name): vocab_})
     args.update({'classes': len(args['labelmapping_dict'])})
     train_dataset = LionDataset(args.train_file, args)
+    #TODO: num train steps
+    args.num_train_optimization_steps = int(math.ceil(len(train_dataset)) / args.batch_size) * args.epoches
     dev_dataset = LionDataset(args.dev_file, args)
     train_loader = prepare_loader(train_dataset, args, split='train')
     dev_loader = prepare_loader(dev_dataset, args, split='dev')

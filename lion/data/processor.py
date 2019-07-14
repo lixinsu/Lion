@@ -74,11 +74,7 @@ def process_dataset(in_dir, out_dir, tokenizer_name='spacy', vocab_file=None, sp
         label2index = gather_labels(dataset)
         jsondump(label2index, 'labelmapping.json')
         processed = []
-        i=0
         for datum in tqdm(dataset):
-            i+=1
-            if i> 20:
-                break
             try:
                 processed.append(process_datum(datum, tokenizer, label2index))
             except:
@@ -98,11 +94,7 @@ def process_dataset(in_dir, out_dir, tokenizer_name='spacy', vocab_file=None, sp
         filename = osp.join(in_dir, split)
         dataset = [json.loads(line) for line in open(filename)]
         out_file = open(osp.join(out_dir, 'dev_{}.jsonl'.format(tokenizer_name)), 'w')
-        i=0
         for datum in tqdm(dataset):
-            i+=1
-            if i> 20:
-                break
             processed_datum = process_datum(datum, tokenizer, label2index)
             out_file.write('{}\n'.format(json.dumps(processed_datum)))
     if 'test' in splits:
@@ -110,12 +102,7 @@ def process_dataset(in_dir, out_dir, tokenizer_name='spacy', vocab_file=None, sp
         filename = osp.join(in_dir, split)
         dataset = [json.loads(line) for line in open(filename)]
         out_file = open(osp.join(out_dir, 'test_{}.jsonl'.format(tokenizer_name)), 'w')
-        i=0
-
         for datum in tqdm(dataset):
-            i+=1
-            if i> 20:
-                break
             processed_datum = process_datum(datum, tokenizer, label2index)
             out_file.write('{}\n'.format(json.dumps(processed_datum)))
 
