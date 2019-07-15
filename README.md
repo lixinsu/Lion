@@ -8,7 +8,7 @@ Text pair classification toolkit.
  `python  lion/data/dataset_utils/quoraqp.py convert-dataset  --indir INDIR --outdir OUTDIR`
  
  2. Preprocess the dataset.  
- ` python lion/data/processor.py process-dataset --in-dir IN_DIR --out-dir OUT_DIR --tokenizer-name [spacy/bert]`
+ ` python lion/data/processor.py process-dataset --in-dir IN_DIR --out-dir OUT_DIR --tokenizer-name [spacy/bert] --vocab-file FILE_PATH`
 
  ### Training:  
 1. Create a directory for saving model and put the config file in it . 
