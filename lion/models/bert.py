@@ -2,16 +2,13 @@ import os
 import sys
 import json
 import copy
-import logging
 
 import torch
 import torch.nn as nn
-from torch.nn import CrossEntropyLoss
+from loguru import logger
 
 from lion.modules.bert_encoder import BertEncoder, BertPooler
 from lion.modules.layer_norm import LayerNorm
-
-logger = logging.getLogger(__name__)
 
 
 class BertConfig(object):
@@ -177,8 +174,11 @@ class BertPreTrainedModel(nn.Module):
         # Instantiate model.
         model = cls(config, *inputs, **kwargs)
         weights_path = os.path.join(pretrained_model_path, 'pytorch_model.bin')
-        state_dict = torch.load(weights_path, map_location='cpu')
-
+        try:
+            state_dict = torch.load(weights_path, map_location='cpu')
+            logger.info("loading archive file {}".format(weights_path))
+        except:
+            raise ValueError("Bert model path '{}' is invalid".format(pretrained_model_path))
         # Load from a PyTorch state_dict
         old_keys = []
         new_keys = []

@@ -1,10 +1,13 @@
 dev_file: data/preprocessed/SNLI/dev_bert.jsonl
 meta_dir: data/preprocessed/SNLI/
 train_file: data/preprocessed/SNLI/train_bert.jsonl
+#dev_file: data/preprocessed/SNLIdebug/dev_bert.jsonl
+#meta_dir: data/preprocessed/SNLIdebug/
+#train_file: data/preprocessed/SNLIdebug/train_bert.jsonl
 network: bert
 fix_embeddings: false
 use_cuda: true
-batch_size: 6
+batch_size: 32
 epoches: 3
 optimizer: bert-adam
 learning_rate: 2.0e-5

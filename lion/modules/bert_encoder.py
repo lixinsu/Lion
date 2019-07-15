@@ -29,19 +29,29 @@ class BertEncoder(nn.Module):
 class SubLayer(nn.Module):
     def __init__(self, num_head, dim_model, dim_out, dropout_prob=0.1, act='relu', eps=1e-12):
         super(SubLayer, self).__init__()
-        self.attention = MultiHeadedAttention(num_head, dim_model, dropout_prob)
-        self.sub_output = SublayerOutput(dim_model, dropout_prob, eps)
+        self.attention = BertAttention(num_head, dim_model, dropout_prob, eps)
         self.intermediate = MLP(dim_model, dim_out, act)
         self.output = EncoderOutput(dim_out, dim_model, dropout_prob, eps)
 
     def forward(self, hidden_states, attention_mask):
         # embedding_output, extended_attention_mask
         # attention_output.size == embedding_output.size == b*s*h
-        attention_output = self.attention(v1=hidden_states, v1_mask=attention_mask)
-        sublayer_output = self.sub_output(attention_output, hidden_states)
-        intermediate_output = self.intermediate(sublayer_output)
+        attention_output = self.attention(hidden_states, attention_mask)
+        intermediate_output = self.intermediate(attention_output)
         layer_output = self.output(intermediate_output, attention_output)
         return layer_output
+
+
+class BertAttention(nn.Module):
+    def __init__(self, num_head, dim_model, dropout_prob, eps):
+        super(BertAttention, self).__init__()
+        self.self = MultiHeadedAttention(num_head, dim_model, dropout_prob)
+        self.output = SublayerOutput(dim_model, dropout_prob, eps)
+
+    def forward(self, input_tensor, attention_mask):
+        self_output = self.self(v1=input_tensor, v1_mask=attention_mask)
+        attention_output = self.output(self_output, input_tensor)
+        return attention_output
 
 
 class SublayerOutput(nn.Module):

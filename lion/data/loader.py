@@ -51,22 +51,20 @@ def batchify_factory(max_A_len=None, max_B_len=None):
             else:
                 padded_data = torch.LongTensor(len(batch_data), max_len, 16).fill_(0)
             if 'A' in k and 'Amask' not in rv and 'Asegment' not in rv:
-                Amask = torch.LongTensor(len(batch_data), max_len).fill_(1)
+                Amask = torch.LongTensor(len(batch_data), max_len).fill_(0)
                 Asegment = torch.LongTensor(len(batch_data), max_len).fill_(0)
             if 'B' in k and 'Bmask' not in rv and 'Bsegment' not in rv:
-                Bmask = torch.LongTensor(len(batch_data), max_len).fill_(1)
+                Bmask = torch.LongTensor(len(batch_data), max_len).fill_(0)
                 Bsegment = torch.LongTensor(len(batch_data), max_len).fill_(1)
             for i, d in enumerate(batch_data):
                 if 'char' not in k:
                     padded_data[i, :d.size(0)].copy_(d[:max_len])
                 else:
                     padded_data[i, :d.size(0), :].copy_(d[:max_len, :])
-                if Amask is not None and Asegment is not None:
-                    Amask[i, :d.size(0)].fill_(0)
-                    Asegment[i, :d.size(0)].fill_(0)
+                if Amask is not None:
+                    Amask[i, :d.size(0)].fill_(1)
                 if Bmask is not None and Bsegment is not None:
-                    Bmask[i, :d.size(0)].fill_(0)
-                    Bsegment[i, :d.size(0)].fill_(1)
+                    Bmask[i, :d.size(0)].fill_(1)
             if 'Amask' not in rv and Amask is not None:
                 rv['Amask'] = Amask
                 rv['Asegment'] = Asegment

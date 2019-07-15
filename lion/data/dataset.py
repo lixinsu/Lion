@@ -44,7 +44,7 @@ class LionDataset(Dataset):
         pos_dict = self.pos_dict
         ner_dict = self.ner_dict
         ex['Asegment'] = [0] * len(ex['Atokens'])
-        ex['Bsegment'] = [0] * len(ex['Btokens'])
+        ex['Bsegment'] = [1] * len(ex['Btokens'])
         if self.length_limit and len(ex['Atokens']) > self.length_limit:
             ex['Atokens'] = ex['Atokens'][0:self.length_limit]
             ex['Apos'] = ex['Apos'][0:self.length_limit]

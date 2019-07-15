@@ -46,13 +46,12 @@ def process_datum(datum, tokenizer, label2index):
     rv['Btokens'] = B.words()
     rv['Bpos'] = B.pos()
     rv['Bner'] = B.entities()
+    # Todo: A nice way to distinguish bert and other model
     op = getattr(tokenizer, 'convert_tokens_to_ids', None)
     if callable(op):
         # Adapt to bert input format
         rv['Atokens'] = ["[CLS]"] + rv['Atokens'] + ["[SEP]"]
-        rv['A_ids'] = tokenizer.convert_tokens_to_ids(rv['Atokens'])
         rv['Btokens'] = rv['Btokens'] + ["[SEP]"]
-        rv['B_ids'] = tokenizer.convert_tokens_to_ids(rv['Btokens'])
     return rv
 
 
