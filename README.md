@@ -7,8 +7,8 @@ Text pair classification toolkit.
  1. Transform the dataset to the standard formation . We currently support snli and quoraqp. Please write your own transformation scripts for other dataset.  
  `python  lion/data/dataset_utils/quoraqp.py convert-dataset  --indir INDIR --outdir OUTDIR`
  
- 2. Preprocess the dataset . 
-  ` python lion/data/processor.py process-dataset --in-dir IN_DIR --out-dir OUT_DIR`
+ 2. Preprocess the dataset.  
+ ` python lion/data/processor.py process-dataset --in-dir IN_DIR --out-dir OUT_DIR --tokenizer-name [spacy/bert]`
 
  ### Training:  
 1. Create a directory for saving model and put the config file in it . 
