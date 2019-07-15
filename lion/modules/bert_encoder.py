@@ -59,17 +59,17 @@ class SublayerOutput(nn.Module):
     A residual connection followed by a layer norm.
     Note for code simplicity the norm is first as opposed to last.
     """
-    def __init__(self, size, dropout, eps):
+    def __init__(self, hidden_size, dropout, eps):
         super(SublayerOutput, self).__init__()
-        self.dense = nn.Linear(size, size)
-        self.LayerNorm = LayerNorm(size, eps)
+        self.dense = nn.Linear(hidden_size, hidden_size)
+        self.LayerNorm = LayerNorm(hidden_size, eps)
         self.dropout = nn.Dropout(dropout)
 
-    def forward(self, hidden_states, x):
+    def forward(self, hidden_states, input_tensor):
         """"Apply residual connection to any sublayer with the same size."""
         hidden_states = self.dense(hidden_states)
         hidden_states = self.dropout(hidden_states)
-        hidden_states = self.LayerNorm(hidden_states + x)
+        hidden_states = self.LayerNorm(hidden_states + input_tensor)
         return hidden_states
 
 

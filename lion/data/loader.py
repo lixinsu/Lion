@@ -63,7 +63,7 @@ def batchify_factory(max_A_len=None, max_B_len=None):
                     padded_data[i, :d.size(0), :].copy_(d[:max_len, :])
                 if Amask is not None:
                     Amask[i, :d.size(0)].fill_(1)
-                if Bmask is not None and Bsegment is not None:
+                if Bmask is not None:
                     Bmask[i, :d.size(0)].fill_(1)
             if 'Amask' not in rv and Amask is not None:
                 rv['Amask'] = Amask

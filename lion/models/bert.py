@@ -402,11 +402,8 @@ class BertForSequenceClassification(BertPreTrainedModel):
         Bsegment = ex['Bsegment']
         Amask = ex['Amask']
         Bmask = ex['Bmask']
-        # input_ids = A+B
         input_ids = torch.cat([A, B], dim=-1)
-        # token_type_ids = Asegment+Bsegment
         token_type_ids = torch.cat([Asegment, Bsegment], dim=-1)
-        # attention_mask = Amask+Bmask
         attention_mask = torch.cat([Amask, Bmask], dim=-1)
 
         _, pooled_output = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)

@@ -121,7 +121,8 @@ class MultiHeadedAttention(Attention):
 
     def merge_heads(self, x):
         x = x.permute(0, 2, 1, 3).contiguous()
-        new_x_shape = x.size()[:-2] + (x.size(-2) * x.size(-1),)
+        # new_x_shape = x.size()[:-2] + (x.size(-2) * x.size(-1),)
+        new_x_shape = x.size()[:-2] + (self.all_head_size,)
         return x.view(*new_x_shape)  # in Tensorflow implem: fct merge_states
 
     def forward(self, v1, v2=None, v1_mask=None, v2_mask=None):

@@ -8,6 +8,8 @@ from tqdm import tqdm
 import torch
 import torch.optim as optim
 import torch.nn.functional as F
+from torch.nn import CrossEntropyLoss
+
 from loguru import logger
 
 from lion.common.utils import AverageMeter
@@ -85,12 +87,14 @@ class MatchingModel:
                 if k != 'ids':
                     ex[k] = ex[k].cuda()
         logproba = self.network(ex)
-        loss = F.nll_loss(logproba, ex['labels'])
-        self.optimizer.zero_grad()
+        # loss = F.nll_loss(logproba, ex['labels'])
+        loss_fct = CrossEntropyLoss()
+        loss = loss_fct(logproba.view(-1, self.args.classes), ex['labels'].view(-1))
         loss.backward()
-        torch.nn.utils.clip_grad_norm_(self.network.parameters(),
-                                       self.args.grad_clipping)
+        # torch.nn.utils.clip_grad_norm_(self.network.parameters(),
+        #                                self.args.grad_clipping)
         self.optimizer.step()
+        self.optimizer.zero_grad()
 
         return loss.item()
 
@@ -99,6 +103,20 @@ class MatchingModel:
         for ex in tqdm(data_loader):
             loss_val = self.update(ex)
             loss_meter.update(loss_val)
+            # if i == 0:
+            #     for j, data in enumerate(ex):
+            #         if j > 3:
+            #             break
+            #         logger.info("*** Example ***")
+            #         logger.info("A tokens: %s" % " ".join([str(x) for x in ex['Atoken'][j]]))
+            #         logger.info("B tokens: %s" % " ".join([str(x) for x in ex['Btoken'][j]]))
+            #         logger.info("A input_mask: %s" % " ".join([str(x) for x in ex['Amask'][j]]))
+            #         logger.info("B input_mask: %s" % " ".join([str(x) for x in ex['Bmask'][j]]))
+            #         logger.info(
+            #             "A segment_ids: %s" % " ".join([str(x) for x in ex['Asegment'][j]]))
+            #         logger.info(
+            #             "B segment_ids: %s" % " ".join([str(x) for x in ex['Bsegment'][j]]))
+            #         logger.info("label: % d" % (ex['labels'][j]))
         return loss_meter.avg
 
     def predict(self, ex):
@@ -136,7 +154,7 @@ class MatchingModel:
             all_proba.extend(proba)
             gts = ex['labels'].tolist()
             all_gt.extend(gts)
-        c = sum(np.array(all_gt) == np.array(all_pred) )
+        c = sum(np.array(all_gt)==np.array(all_pred))
         n = len(all_gt)
         logger.info('{}/{} = {}'.format(c, n, c/n))
         return {'acc': c/n}
