@@ -54,11 +54,13 @@ dropout:
     <td align="center", bgcolor=#eeeeee> BiMPM </td>
     <td align="center", bgcolor=#eeeeee> 86.9(88.17) </td>
     <td align="center", bgcolor=#eeeeee> 86.0(86.9) </td>
+    <td align="center", bgcolor=#eeeeee>  </td>
   </tr>
   <tr>
     <td align="center", bgcolor=#eeeeee> Esim </td>
     <td align="center", bgcolor=#eeeeee> 88.4 </td>
     <td align="center", bgcolor=#eeeeee> 87.4 </td>
+    <td align="center", bgcolor=#eeeeee>  </td>
   </tr>
 <tr>
     <td align="center", bgcolor=#eeeeee> bert </td>
