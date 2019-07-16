@@ -45,10 +45,10 @@ dropout:
 
 <table>
   <tr>
-    <th width=30%, bgcolor=#999999 >Model</th> 
-    <th width=35%, bgcolor=#999999>Quora QP</th>
-    <th width="35%", bgcolor=#999999>SNLI</th>
-    <th width="35%", bgcolor=#999999>QNLI</th>
+    <th width=25%, bgcolor=#999999 >Model</th> 
+    <th width=25%, bgcolor=#999999>Quora QP</th>
+    <th width="25%", bgcolor=#999999>SNLI</th>
+    <th width="25%", bgcolor=#999999>QNLI</th>
   </tr>
   <tr>
     <td align="center", bgcolor=#eeeeee> BiMPM </td>
