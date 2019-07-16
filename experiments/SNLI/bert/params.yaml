@@ -13,6 +13,6 @@ optimizer: bert-adam
 length_limit: 128
 learning_rate: 2.0e-5
 warmup_proportion: 0.1
-loss_funtion: cross_entropy
+loss_function: cross_entropy
 model_dir: ../pytorch-pretrained-BERT/examples/output/bert-base-uncased/
 vocab_file: ../pytorch-pretrained-BERT/examples/output/bert-base-uncased/vocab.txt
