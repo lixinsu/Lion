@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-import sys
 import math
 import os.path as osp
 import argparse
@@ -23,7 +22,7 @@ DEFAULTS = {'batch_size': 32,
             'use_cuda': False,
             'parallel': False,
             'num_workers': 2,
-            'length_limit': 1000,
+            'length_limit': 512,
             'optimizer': 'adamax',
             'min_cnt': 0,
             'grad_clipping': 10,
@@ -35,58 +34,60 @@ DEFAULTS = {'batch_size': 32,
             'max_B_len': None}
 
 
-def fill_default_parameters(args):
+def fill_default_parameters(params):
     for k in DEFAULTS:
-        if k not in args:
-            args.update({k: DEFAULTS[k]})
-    return args
+        if k not in params:
+            params.update({k: DEFAULTS[k]})
+    return params
 
 
-def check_fill_parameters(args, split='train'):
+def check_fill_parameters(params, split='train'):
     critical_keys = {'network', 'meta_dir'}
     for k in critical_keys:
-        if k not in args:
+        if k not in params:
             raise ValueError("Please input {} in config file".format(k))
     if split == 'train':
-        if 'train_file' not in args or 'dev_file' not in args:
+        if 'train_file' not in params or 'dev_file' not in params:
             raise ValueError("Train Mode must specify train_file and dev_file in config file")
     elif split == 'dev':
-        if 'dev_file' not in args:
+        if 'dev_file' not in params:
             raise ValueError("Evaluate Mode must specify 'dev_file' in config file")
     elif split == 'test':
-        if 'test_file' not in args:
+        if 'test_file' not in params:
             raise ValueError("Predict Mode must specify 'test_file' in config file")
-    return fill_default_parameters(args)
+    return fill_default_parameters(params)
 
 
-def train(output_dir):
-    """Train model.
-
-    :param output_dir: the model path which to save
-    """
-    config_file = osp.join(output_dir, 'params.yaml')
-    args = Param.load(config_file)
-    logger.info('\n' + str(args))
-    args = check_fill_parameters(args, split='train')
-    args.update({'output_dir': output_dir})
-    writer = SummaryWriter(args.output_dir)
+def train():
+    """Train model."""
+    config_file = osp.join(args.output_dir, 'params.yaml')
+    params = Param.load(config_file)
+    logger.info('\n' + str(params))
+    params = check_fill_parameters(params, split='train')
+    params.update({'output_dir': args.output_dir})
+    writer = SummaryWriter(params.output_dir)
     for vocab_name in ['char', 'word', 'pos', 'ner', 'labelmapping']:
-        if vocab_name == 'word' and 'vocab_file' in args:
-            vocab_ = Dictionary.load_txt(args.vocab_file)
+        if vocab_name == 'word' and 'vocab_file' in params and params['vocab_file'] is not None:
+            # Load vocab from existing file
+            vocab_ = Dictionary.load_txt(params.vocab_file)
         else:
-            vocab_ = Dictionary.load_json(osp.join(args.meta_dir, '{}.json'.format(vocab_name)), min_cnt=args.min_cnt)
-        args.update({'{}_dict_size'.format(vocab_name): len(vocab_)})
-        args.update({'{}_dict'.format(vocab_name): vocab_})
-    args.update({'classes': len(args['labelmapping_dict'])})
-    train_dataset = LionDataset(args.train_file, args)
-    #TODO: num train steps
-    args.num_train_optimization_steps = int(math.ceil(len(train_dataset)) / args.batch_size) * args.epoches
-    dev_dataset = LionDataset(args.dev_file, args)
-    train_loader = prepare_loader(train_dataset, args, split='train')
-    dev_loader = prepare_loader(dev_dataset, args, split='dev')
-    model = MatchingModel(args, state_dict=None)
+            # Load vocab from self-create file
+            vocab_ = Dictionary.load_json(osp.join(params.meta_dir, '{}.json'.format(vocab_name)),
+                                          min_cnt=params.min_cnt)
+        params.update({'{}_dict_size'.format(vocab_name): len(vocab_)})
+        params.update({'{}_dict'.format(vocab_name): vocab_})
+    params.update({'classes': len(params['labelmapping_dict'])})
+
+    train_dataset = LionDataset(params.train_file, params)
+    # pre-compute num train steps for `bert`
+    params.num_train_optimization_steps = int(math.ceil(len(train_dataset) / params.batch_size * params.epoches))
+    dev_dataset = LionDataset(params.dev_file, params)
+    train_loader = prepare_loader(train_dataset, params, split='train')
+    dev_loader = prepare_loader(dev_dataset, params, split='dev')
+
+    model = MatchingModel(params, state_dict=None)
     best_metric = 0
-    for epoch in range(args.epoches):
+    for epoch in range(params.epoches):
         loss = model.train_epoch(train_loader)
         logger.info('loss {}'.format(loss))
         writer.add_scalar('train/loss', loss, epoch)
@@ -95,30 +96,24 @@ def train(output_dir):
         if result['acc'] > best_metric:
             best_metric = result['acc']
             model.save(osp.join(args.output_dir, MODEL_FILE))
+    logger.info('Best metric:{}'.format(best_metric))
 
 
-def evaluate(output_dir, dev_file):
-    """Evaluate Model.
-    :param output_dir: the model path
-    :param dev_file: the dev file path
-    """
-    model, args = load_model(osp.join(output_dir, MODEL_FILE))
-    args = check_fill_parameters(args, split='dev')
-    dev_dataset = LionDataset(dev_file, args)
-    dev_loader = prepare_loader(dev_dataset, args, split='dev')
+def evaluate():
+    """Evaluate Model."""
+    model, params = load_model(osp.join(args.output_dir, MODEL_FILE))
+    params = check_fill_parameters(params, split='dev')
+    dev_dataset = LionDataset(params.dev_file, params)
+    dev_loader = prepare_loader(dev_dataset, params, split='dev')
     result = model.evaluate_epoch(dev_loader)
     logger.info("Acc : {}".format(result['acc']))
 
 
-def predict(output_dir, test_file):
-    """Predict.
-
-    :param output_dir: the model path
-    :param test_file: the test file path
-    """
-    model, args = load_model(osp.join(output_dir, MODEL_FILE))
-    args = check_fill_parameters(args, split='test')
-    test_dataset = LionDataset(test_file, args)
+def predict():
+    """Predict."""
+    model, params = load_model(osp.join(args.output_dir, MODEL_FILE))
+    params = check_fill_parameters(params, split='test')
+    test_dataset = LionDataset(params.test_file, args)
     test_loader = prepare_loader(test_dataset, args, split='dev')
     rv = model.predict_epoch(test_loader)
     id2label = {}
@@ -126,7 +121,7 @@ def predict(output_dir, test_file):
         id2label[index] = label
     for key, value in rv.items():
         rv[key] = id2label[value]
-    predict_file = osp.join(output_dir, 'predictions.json')
+    predict_file = osp.join(args.output_dir, 'predictions.json')
     if osp.isfile(predict_file):
         logger.warning('Will overwrite original predictions')
     json.dump(rv, open(predict_file, 'w'))
@@ -153,10 +148,10 @@ if __name__ == '__main__':
     if args.train:
         logger = prepare_logger(osp.join(args.output_dir, 'train.log'))
         logger.info('Save model in {}'.format(args.output_dir))
-        train(args.output_dir)
+        train()
     elif args.evaluate:
-        evaluate(args.output_dir, args.dev_file)
+        evaluate()
     elif args.predict:
-        predict(args.output_dir, args.test_file)
+        predict()
     else:
         raise ValueError("At least one of train evaluate predict shoud be true")

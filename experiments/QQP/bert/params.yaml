@@ -1,6 +1,6 @@
-dev_file: data/preprocessed/SNLI/dev_bert.jsonl
-meta_dir: data/preprocessed/SNLI/
-train_file: data/preprocessed/SNLI/train_bert.jsonl
+dev_file: data/preprocessed/QQP/dev_bert.jsonl
+meta_dir: data/preprocessed/QQP/
+train_file: data/preprocessed/QQP/train_bert.jsonl
 #dev_file: data/preprocessed/SNLIdebug/dev_bert.jsonl
 #meta_dir: data/preprocessed/SNLIdebug/
 #train_file: data/preprocessed/SNLIdebug/train_bert.jsonl

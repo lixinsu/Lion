@@ -394,7 +394,6 @@ class BertForSequenceClassification(BertPreTrainedModel):
         self.ff = nn.Linear(config.hidden_size*2, num_labels)
         self.apply(self.init_bert_weights)
 
-    # def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels=None, layer_index=12, use_cls=True):
     def forward(self, ex):
         A = ex['Atoken']
         B = ex['Btoken']
@@ -410,9 +409,4 @@ class BertForSequenceClassification(BertPreTrainedModel):
         pooled_output = self.dropout(pooled_output)
         logits = self.classifier(pooled_output)
 
-        # if labels is not None:
-        #     loss_fct = CrossEntropyLoss()
-        #     loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
-        #     return loss
-        # else:
         return logits

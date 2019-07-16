@@ -2,15 +2,12 @@
 # coding: utf-8
 
 import os
+import json
+import fire
 import logging
+from tqdm import tqdm
 import os.path as osp
 from collections import Counter, OrderedDict
-
-import json
-from tqdm import tqdm
-import fire
-from multiprocessing import Pool
-
 
 from lion.common.tokenizer import get_class
 
@@ -46,9 +43,8 @@ def process_datum(datum, tokenizer, label2index):
     rv['Btokens'] = B.words()
     rv['Bpos'] = B.pos()
     rv['Bner'] = B.entities()
-    # Todo: A nice way to distinguish bert and other model
-    op = getattr(tokenizer, 'convert_tokens_to_ids', None)
-    if callable(op):
+
+    if tokenizer.__class__.__name__ == 'BertTokenizer':
         # Adapt to bert input format
         rv['Atokens'] = ["[CLS]"] + rv['Atokens'] + ["[SEP]"]
         rv['Btokens'] = rv['Btokens'] + ["[SEP]"]
