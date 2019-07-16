@@ -48,6 +48,7 @@ dropout:
     <th width=30%, bgcolor=#999999 >Model</th> 
     <th width=35%, bgcolor=#999999>Quora QP</th>
     <th width="35%", bgcolor=#999999>SNLI</th>
+    <th width="35%", bgcolor=#999999>QNLI</th>
   </tr>
   <tr>
     <td align="center", bgcolor=#eeeeee> BiMPM </td>
@@ -59,7 +60,12 @@ dropout:
     <td align="center", bgcolor=#eeeeee> 88.4 </td>
     <td align="center", bgcolor=#eeeeee> 87.4 </td>
   </tr>
-
+<tr>
+    <td align="center", bgcolor=#eeeeee> bert </td>
+    <td align="center", bgcolor=#eeeeee> </td>
+    <td align="center", bgcolor=#eeeeee> 90.7 </td>
+    <td align="center", bgcolor=#eeeeee> 91.7 </td>
+  </tr>
 </table>
 
 ## License
