@@ -1,3 +1,4 @@
+import math
 import torch
 import torch.nn as nn
 """Tensor utility"""
@@ -42,3 +43,11 @@ def sort_by_seq_lens(batch, sequences_lengths, descending=True):
 
     return sorted_batch, sorted_seq_lens, sorting_index, restoration_index
 
+
+def gelu(x):
+    """Implementation of the gelu activation function.
+        For information: OpenAI GPT's gelu is slightly different (and gives slightly different results):
+        0.5 * x * (1 + torch.tanh(math.sqrt(2 / math.pi) * (x + 0.044715 * torch.pow(x, 3))))
+        Also see https://arxiv.org/abs/1606.08415
+    """
+    return x * 0.5 * (1.0 + torch.erf(x / math.sqrt(2.0)))

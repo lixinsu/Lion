@@ -64,7 +64,7 @@ class Dictionary(object):
         return tokens
 
     @classmethod
-    def load(cls, vocab_file, min_cnt=0):
+    def load_json(cls, vocab_file, min_cnt=0):
         vocab = cls()
         for k, v in json.load(open(vocab_file)).items():
             assert v is not None
@@ -72,6 +72,20 @@ class Dictionary(object):
                 vocab.add(k)
         return vocab
 
+    @classmethod
+    def load_txt(cls, vocab_file, min_cnt=0):
+        """Loads a vocabulary file into a dictionary."""
+        vocab = cls()
+        index = 0
+        with open(vocab_file, "r", encoding="utf-8") as reader:
+            while True:
+                token = reader.readline()
+                if not token:
+                    break
+                token = token.strip()
+                vocab[token] = index
+                index += 1
+        return vocab
 
 if __name__ == '__main__':
     vocab = Dictionary.load('data/preprocessed/QQPdebug/ner.json')

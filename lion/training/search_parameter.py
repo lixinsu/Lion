@@ -73,7 +73,7 @@ def random_params(params, param_keys, ratio=0.5):
 if __name__ == "__main__":
     args = parser.parse_args()
     param_path = os.path.join(args.parent_dir, 'params.yaml')
-    assert os.path.isfile(param_path), "No yaml configuration file found at {}".format(params_path)
+    assert os.path.isfile(param_path), "No yaml configuration file found at {}".format(param_path)
     basic_params = yaml.load(open(param_path))
     tuned_param_path = os.path.join(args.parent_dir, 'tuned_params.yaml')
     assert os.path.isfile(tuned_param_path), "No tuned params configuration file"

@@ -8,47 +8,65 @@ from tqdm import tqdm
 import torch
 import torch.optim as optim
 import torch.nn.functional as F
+from torch.nn import CrossEntropyLoss
+
 from loguru import logger
 
 from lion.common.utils import AverageMeter
+from lion.training.optimizers import BertAdam
 from lion.models import get_model_class
 
 
 class MatchingModel:
-    def __init__(self, args, state_dict=None):
-        self.args = args
-        self.network = get_model_class(args.network)(args)
-        args.use_cuda = args.use_cuda if torch.cuda.is_available() else False
-        if args.use_cuda:
+    def __init__(self, params, state_dict=None):
+        self.params = params
+        if params.network == 'bert':
+            self.network = get_model_class(params.network).from_pretrained(params.model_dir, params.classes)
+        else:
+            self.network = get_model_class(params.network)(params)
+        params.use_cuda = params.use_cuda if torch.cuda.is_available() else False
+        if params.use_cuda:
             self.network.cuda()
         self.init_optimizer()
         if state_dict is not None:
             self.network.load_state_dict(state_dict)
-        if args.embedding_file and state_dict is None:
-            self.load_embedding(args.word_dict, args.embedding_file)
+        if params.embedding_file and state_dict is None:
+            self.load_embedding(params.word_dict, params.embedding_file)
 
     def init_optimizer(self):
         """Initialize an optimizer for the free parameters of the network.
         Args:
             state_dict: network parameters
         """
-        if self.args.fix_embeddings:
+        if self.params.fix_embeddings:
             for p in self.network.word_embedding.parameters():
                 p.requires_grad = False
         parameters = [p for p in self.network.parameters() if p.requires_grad]
-        if self.args.optimizer == 'sgd':
-            self.optimizer = optim.SGD(parameters, self.args.learning_rate,
-                                       momentum=self.args.momentum,
-                                       weight_decay=self.args.weight_decay)
-        elif self.args.optimizer == 'adamax':
+        if self.params.optimizer == 'sgd':
+            self.optimizer = optim.SGD(parameters, self.params.learning_rate,
+                                       momentum=self.params.momentum,
+                                       weight_decay=self.params.weight_decay)
+        elif self.params.optimizer == 'adamax':
             self.optimizer = optim.Adamax(parameters,
-                                          weight_decay=self.args.weight_decay)
+                                          weight_decay=self.params.weight_decay)
+        elif self.params.optimizer == 'bert-adam':
+            list_param_optimizer = list(self.network.named_parameters())
+            no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
+            optimizer_grouped_parameters = [
+                {'params': [p for n, p in list_param_optimizer if not any(nd in n for nd in no_decay)],
+                 'weight_decay': 0.01},
+                {'params': [p for n, p in list_param_optimizer if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
+            ]
+            self.optimizer = BertAdam(optimizer_grouped_parameters,
+                                      lr=self.params.learning_rate,
+                                      warmup=self.params.warmup_proportion,
+                                      t_total=self.params.num_train_optimization_steps)
         else:
             raise RuntimeError('Unsupported optimizer: %s' %
-                               self.args.optimizer)
+                               self.params.optimizer)
 
     def load_embedding(self, words, embedding_file):
-        words = {w for w in words if w in self.args.word_dict}
+        words = {w for w in words if w in self.params.word_dict}
         embedding = self.network.word_embedding.weight.data
         with open(embedding_file) as f:
             line = f.readline().rstrip().split(' ')
@@ -57,24 +75,28 @@ class MatchingModel:
             for line in f:
                 parsed = line.rstrip().split(' ')
                 assert(len(parsed) == embedding.size(1) + 1)
-                w = self.args.word_dict.normalize(parsed[0])
+                w = self.params.word_dict.normalize(parsed[0])
                 if w in words:
                     vec = torch.Tensor([float(i) for i in parsed[1:]])
-                    embedding[self.args.word_dict[w]].copy_(vec)
+                    embedding[self.params.word_dict[w]].copy_(vec)
 
     def update(self, ex):
         self.network.train()
-        if self.args.use_cuda:
+        if self.params.use_cuda:
             for k in ex.keys():
                 if k != 'ids':
                     ex[k] = ex[k].cuda()
         logproba = self.network(ex)
-        loss = F.nll_loss(logproba, ex['labels'])
-        self.optimizer.zero_grad()
+        if self.params.loss_function.lower() == 'cross_entropy':
+            loss_fct = CrossEntropyLoss()
+            loss = loss_fct(logproba.view(-1, self.params.classes), ex['labels'].view(-1))
+        else:
+            loss = F.nll_loss(logproba, ex['labels'])
         loss.backward()
         torch.nn.utils.clip_grad_norm_(self.network.parameters(),
-                                                       self.args.grad_clipping)
+                                       self.params.grad_clipping)
         self.optimizer.step()
+        self.optimizer.zero_grad()
 
         return loss.item()
 
@@ -89,7 +111,7 @@ class MatchingModel:
         # Eval mode
         self.network.eval()
         # Transfer to GPU
-        if self.args.use_cuda:
+        if self.params.use_cuda:
             for k in ex.keys():
                 if k != 'ids':
                     ex[k] = ex[k].cuda()
@@ -120,13 +142,13 @@ class MatchingModel:
             all_proba.extend(proba)
             gts = ex['labels'].tolist()
             all_gt.extend(gts)
-        c = sum(np.array(all_gt) == np.array(all_pred) )
+        c = sum(np.array(all_gt)==np.array(all_pred))
         n = len(all_gt)
         logger.info('{}/{} = {}'.format(c, n, c/n))
         return {'acc': c/n}
 
     def save(self, filename):
-        if self.args.parallel:
+        if self.params.parallel:
             network = self.network.module
 
         else:
@@ -134,7 +156,7 @@ class MatchingModel:
         state_dict = copy.copy(network.state_dict())
         params = {
             'state_dict': state_dict,
-            'args': self.args,
+            'args': self.params,
         }
         try:
             torch.save(params, filename)
@@ -148,6 +170,6 @@ class MatchingModel:
             filename, map_location=lambda storage, loc: storage
         )
         state_dict = saved_params['state_dict']
-        args = saved_params['args']
-        return MatchingModel(args, state_dict), args
+        params = saved_params['args']
+        return MatchingModel(params, state_dict), params
 
