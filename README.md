@@ -64,7 +64,7 @@ dropout:
   </tr>
 <tr>
     <td align="center", bgcolor=#eeeeee> BERT </td>
-    <td align="center", bgcolor=#eeeeee> 90.9</td>
+    <td align="center", bgcolor=#eeeeee> 91.3</td>
     <td align="center", bgcolor=#eeeeee> 91.1 </td>
     <td align="center", bgcolor=#eeeeee> 91.7 </td>
   </tr>
