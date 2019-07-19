@@ -41,6 +41,8 @@ class MatchingModel:
             self.optimizer = optim.SGD(parameters, self.params.learning_rate,
                                        momentum=self.params.momentum,
                                        weight_decay=self.params.weight_decay)
+        elif self.params.optimizer.lower() == 'adam':
+            self.optimizer = optim.Adam(parameters, lr=self.params.learning_rate)
         elif self.params.optimizer == 'adamax':
             self.optimizer = optim.Adamax(parameters,
                                           weight_decay=self.params.weight_decay)

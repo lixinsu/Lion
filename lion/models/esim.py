@@ -17,7 +17,7 @@ class ESIM(nn.Module):
     Natural Language Inference" by Chen et al.
     """
 
-    MODEL_DEFAULTS = {'dropout': 0.1,
+    MODEL_DEFAULTS = {'dropout': 0.5,
                       'hidden_size': 100,
                       'word_dim': 300}
 

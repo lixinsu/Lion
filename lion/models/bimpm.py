@@ -30,13 +30,14 @@ class BIMPM(nn.Module):
         self.fill_default_parameters()
         self.input_size = self.args['word_dim'] + int(self.args['use_char_emb']) * self.args['char_hidden_size']
         self.num_perspective = self.args['num_perspective']
-        # ----- Word Representation Layer -----
+        # Word Representation Layer
         self.char_emb = nn.Embedding(args['char_dict_size'],args['char_dim'], padding_idx=0)
         self.word_embedding = nn.Embedding(args['word_dict_size'], args['word_dim'])
-        # initialize word word_embedding with GloVe
-        # self.word_embedding.weight.data.copy_(data.TEXT.vocab.vectors)
         # no fine-tuning for word vectors
         self.word_embedding.weight.requires_grad = False
+        self.full_match = FullLayerMatch()
+        self.max_pooling_match = MaxPoolingLayerMatch()
+        self.attention= BasicAttention()
 
         self.char_LSTM = nn.LSTM(
             input_size=self.args['char_dim'],
@@ -44,7 +45,7 @@ class BIMPM(nn.Module):
             num_layers=1,
             bidirectional=False,
             batch_first=True)
-        # ----- Context Representation Layer -----
+        # Context Representation Layer
         self.context_LSTM = nn.LSTM(
             input_size=self.input_size,
             hidden_size=self.args['hidden_size'],
@@ -52,11 +53,11 @@ class BIMPM(nn.Module):
             bidirectional=True,
             batch_first=True
         )
-        # ----- Matching Layer -----
+        # Matching Layer
         for i in range(1, 9):
             setattr(self, f'mp_w{i}',
                     nn.Parameter(torch.rand(self.num_perspective, self.args['hidden_size'])))
-        # ----- Aggregation Layer -----
+        # Aggregation Layer
         self.aggregation_LSTM = nn.LSTM(
             input_size=self.num_perspective * 8,
             hidden_size=self.args['hidden_size'],
@@ -76,7 +77,7 @@ class BIMPM(nn.Module):
                 self.args.update({k: v})
 
     def reset_parameters(self):
-        # ----- Word Representation Layer -----
+        # Word Representation Layer
         nn.init.uniform_(self.char_emb.weight, -0.005, 0.005)
         # zero vectors for padding
         self.char_emb.weight.data[0].fill_(0)
@@ -89,7 +90,7 @@ class BIMPM(nn.Module):
         nn.init.orthogonal_(self.char_LSTM.weight_hh_l0)
         nn.init.constant_(self.char_LSTM.bias_hh_l0, val=0)
 
-        # ----- Context Representation Layer -----
+        # Context Representation Layer
         nn.init.kaiming_normal_(self.context_LSTM.weight_ih_l0)
         nn.init.constant_(self.context_LSTM.bias_ih_l0, val=0)
         nn.init.orthogonal_(self.context_LSTM.weight_hh_l0)
@@ -100,12 +101,12 @@ class BIMPM(nn.Module):
         nn.init.orthogonal_(self.context_LSTM.weight_hh_l0_reverse)
         nn.init.constant_(self.context_LSTM.bias_hh_l0_reverse, val=0)
 
-        # ----- Matching Layer -----
+        # Matching Layer
         for i in range(1, 9):
             w = getattr(self, f'mp_w{i}')
             nn.init.kaiming_normal_(w)
 
-        # ----- Aggregation Layer -----
+        # Aggregation Layer
         nn.init.kaiming_normal_(self.aggregation_LSTM.weight_ih_l0)
         nn.init.constant_(self.aggregation_LSTM.bias_ih_l0, val=0)
         nn.init.orthogonal_(self.aggregation_LSTM.weight_hh_l0)
@@ -116,7 +117,7 @@ class BIMPM(nn.Module):
         nn.init.orthogonal_(self.aggregation_LSTM.weight_hh_l0_reverse)
         nn.init.constant_(self.aggregation_LSTM.bias_hh_l0_reverse, val=0)
 
-        # ----- Prediction Layer ----
+        # Prediction Layer
         nn.init.uniform_(self.pred_fc1.weight, -0.005, 0.005)
         nn.init.constant_(self.pred_fc1.bias, val=0)
 
@@ -173,18 +174,16 @@ class BIMPM(nn.Module):
 
         # (batch, seq_len, hidden_size), (batch, hidden_size)
         # -> (batch, seq_len, l)
-        full_match = FullLayerMatch()
-        mv_A_full_fw = full_match(context_A_fw, context_B_fw[:, -1, :], self.mp_w1)
-        mv_A_full_bw = full_match(context_A_bw, context_B_bw[:, 0, :], self.mp_w2)
-        mv_B_full_fw = full_match(context_B_fw, context_A_fw[:, -1, :], self.mp_w1)
-        mv_B_full_bw = full_match(context_B_bw, context_A_bw[:, 0, :], self.mp_w2)
+        mv_A_full_fw = self.full_match(context_A_fw, context_B_fw[:, -1, :], self.mp_w1)
+        mv_A_full_bw = self.full_match(context_A_bw, context_B_bw[:, 0, :], self.mp_w2)
+        mv_B_full_fw = self.full_match(context_B_fw, context_A_fw[:, -1, :], self.mp_w1)
+        mv_B_full_bw = self.full_match(context_B_bw, context_A_bw[:, 0, :], self.mp_w2)
 
         # 2. Maxpooling-Matching
 
         # (batch, seq_len1, seq_len2, l)
-        max_pooling_match = MaxPoolingLayerMatch()
-        mv_max_fw = max_pooling_match(context_A_fw, context_B_fw, self.mp_w3)
-        mv_max_bw = max_pooling_match(context_A_bw, context_B_bw, self.mp_w4)
+        mv_max_fw = self.max_pooling_match(context_A_fw, context_B_fw, self.mp_w3)
+        mv_max_bw = self.max_pooling_match(context_A_bw, context_B_bw, self.mp_w4)
 
         # (batch, seq_len, l)
         mv_A_max_fw, _ = mv_max_fw.max(dim=2)
@@ -195,9 +194,8 @@ class BIMPM(nn.Module):
         # 3. Attentive-Matching
 
         # (batch, seq_len1, seq_len2)
-        attention= BasicAttention()
-        att_fw = attention(context_A_fw, context_B_fw)
-        att_bw = attention(context_A_bw, context_B_bw)
+        att_fw = self.attention(context_A_fw, context_B_fw)
+        att_bw = self.attention(context_A_bw, context_B_bw)
 
         # (batch, seq_len2, hidden_size) -> (batch, 1, seq_len2, hidden_size)
         # (batch, seq_len1, seq_len2) -> (batch, seq_len1, seq_len2, 1)
@@ -219,10 +217,10 @@ class BIMPM(nn.Module):
         att_mean_A_bw = div_with_small_value(att_A_bw.sum(dim=1), att_bw.sum(dim=1, keepdim=True).permute(0, 2, 1))
 
         # (batch, seq_len, l)
-        mv_A_att_mean_fw = full_match(context_A_fw, att_mean_B_fw, self.mp_w5)
-        mv_A_att_mean_bw = full_match(context_A_bw, att_mean_B_bw, self.mp_w6)
-        mv_B_att_mean_fw = full_match(context_B_fw, att_mean_A_fw, self.mp_w5)
-        mv_B_att_mean_bw = full_match(context_B_bw, att_mean_A_bw, self.mp_w6)
+        mv_A_att_mean_fw = self.full_match(context_A_fw, att_mean_B_fw, self.mp_w5)
+        mv_A_att_mean_bw = self.full_match(context_A_bw, att_mean_B_bw, self.mp_w6)
+        mv_B_att_mean_fw = self.full_match(context_B_fw, att_mean_A_fw, self.mp_w5)
+        mv_B_att_mean_bw = self.full_match(context_B_bw, att_mean_A_bw, self.mp_w6)
 
         # 4. Max-Attentive-Matching
 
@@ -234,10 +232,10 @@ class BIMPM(nn.Module):
         att_max_A_bw, _ = att_A_bw.max(dim=1)
 
         # (batch, seq_len, l)
-        mv_A_att_max_fw = full_match(context_A_fw, att_max_B_fw, self.mp_w7)
-        mv_A_att_max_bw = full_match(context_A_bw, att_max_B_bw, self.mp_w8)
-        mv_B_att_max_fw = full_match(context_B_fw, att_max_A_fw, self.mp_w7)
-        mv_B_att_max_bw = full_match(context_B_bw, att_max_A_bw, self.mp_w8)
+        mv_A_att_max_fw = self.full_match(context_A_fw, att_max_B_fw, self.mp_w7)
+        mv_A_att_max_bw = self.full_match(context_A_bw, att_max_B_bw, self.mp_w8)
+        mv_B_att_max_fw = self.full_match(context_B_fw, att_max_A_fw, self.mp_w7)
+        mv_B_att_max_bw = self.full_match(context_B_bw, att_max_A_bw, self.mp_w8)
 
         # (batch, seq_len, l * 8)
         mv_A = torch.cat(
@@ -265,6 +263,5 @@ class BIMPM(nn.Module):
         output = torch.tanh(self.pred_fc1(output))
         output = self.dropout(output)
         logits = self.pred_fc2(output)
-        # log_prob = nn.functional.log_softmax(logits, dim=-1)
 
         return logits
