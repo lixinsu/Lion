@@ -1,0 +1,6 @@
+dev_file: data/preprocessed/QNLI/dev_spacy.jsonl
+meta_dir: data/preprocessed/QNLI/
+train_file: data/preprocessed/QNLI/train_spacy.jsonl
+embedding_file: data/embeddings/glove.840B.300d.txt
+network: bimpm
+use_cuda: true

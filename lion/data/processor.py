@@ -31,6 +31,7 @@ def gather_dict(processed_train):
 
 
 def process_datum(datum, tokenizer, label2index):
+    assert len(datum) <= 4
     rv = {}
     A = tokenizer.tokenize(str(datum['A']))
     B = tokenizer.tokenize(str(datum['B']))
@@ -43,7 +44,6 @@ def process_datum(datum, tokenizer, label2index):
     rv['Btokens'] = B.words()
     rv['Bpos'] = B.pos()
     rv['Bner'] = B.entities()
-
     if tokenizer.__class__.__name__ == 'BertTokenizer':
         # Adapt to bert input format
         rv['Atokens'] = ["[CLS]"] + rv['Atokens'] + ["[SEP]"]
@@ -51,21 +51,21 @@ def process_datum(datum, tokenizer, label2index):
     return rv
 
 
-def process_dataset(in_dir, out_dir, tokenizer_name='spacy', vocab_file=None, splits=['train', 'dev', 'test']):
+def process_dataset(in_dir, out_dir, splits=['train', 'dev', 'test'], tokenizer_name='spacy', vocab_file=None):
 
     def jsondump(data, filename):
         json.dump(data, open(osp.join(out_dir, filename), 'w'), indent=2)
     if tokenizer_name == 'bert':
         tokenizer = get_class(tokenizer_name)(vocab_file)
     else:
-        tokenizer = get_class(tokenizer_name)
+        tokenizer = get_class(tokenizer_name)()
     if not osp.exists(out_dir):
         os.makedirs(out_dir)
 
     if 'train' in splits:
         split = 'train.jsonl'
         filename = osp.join(in_dir, split)
-        dataset = [json.loads(line) for line in open(filename)]
+        dataset = [json.loads(line) for line in open(filename, 'r', encoding='utf-8').readlines()]
         label2index = gather_labels(dataset)
         jsondump(label2index, 'labelmapping.json')
         processed = []
@@ -73,7 +73,7 @@ def process_dataset(in_dir, out_dir, tokenizer_name='spacy', vocab_file=None, sp
             try:
                 processed.append(process_datum(datum, tokenizer, label2index))
             except:
-                logger.info('Bae line {}'.format(datum))
+                raise ValueError('Bae line {}'.format(datum))
         #with Pool(30) as p:
         #    processed = p.map(tokenizer.tokenize, dataset)
         char_dict, word_dict, pos_dict, ner_dict = gather_dict(processed)
@@ -87,19 +87,29 @@ def process_dataset(in_dir, out_dir, tokenizer_name='spacy', vocab_file=None, sp
     if 'dev' in splits:
         split = 'dev.jsonl'
         filename = osp.join(in_dir, split)
-        dataset = [json.loads(line) for line in open(filename)]
+        dataset = [json.loads(line) for line in open(filename).readlines()]
         out_file = open(osp.join(out_dir, 'dev_{}.jsonl'.format(tokenizer_name)), 'w')
+        processed = []
         for datum in tqdm(dataset):
-            processed_datum = process_datum(datum, tokenizer, label2index)
-            out_file.write('{}\n'.format(json.dumps(processed_datum)))
+            try:
+                processed.append(process_datum(datum, tokenizer, label2index))
+            except:
+                raise ValueError('Bae line {}'.format(datum))
+        for datum in processed:
+            out_file.write('{}\n'.format(json.dumps(datum)))
     if 'test' in splits:
         split = 'test.jsonl'
         filename = osp.join(in_dir, split)
-        dataset = [json.loads(line) for line in open(filename)]
+        dataset = [json.loads(line) for line in open(filename).readlines()]
         out_file = open(osp.join(out_dir, 'test_{}.jsonl'.format(tokenizer_name)), 'w')
+        processed = []
         for datum in tqdm(dataset):
-            processed_datum = process_datum(datum, tokenizer, label2index)
-            out_file.write('{}\n'.format(json.dumps(processed_datum)))
+            try:
+                processed.append(process_datum(datum, tokenizer, label2index))
+            except:
+                raise ValueError('Bae line {}'.format(datum))
+        for datum in processed:
+            out_file.write('{}\n'.format(json.dumps(datum)))
 
 
 if __name__ == '__main__':

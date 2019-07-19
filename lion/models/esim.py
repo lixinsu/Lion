@@ -48,16 +48,16 @@ class ESIM(nn.Module):
         self.dropout = args['dropout']
 
         self.word_embedding = nn.Embedding(self.vocab_size + 1,
-                                            self.embedding_dim,
-                                            padding_idx=0,
-                                            _weight=None)
+                                           self.embedding_dim,
+                                           padding_idx=0,
+                                           _weight=None)
 
         if self.dropout:
             self._rnn_dropout = RNNDropout(p=self.dropout)
 
         self._encoding = StackedBRNN(self.embedding_dim, self.hidden_size, 1,
-                            dropout_rate=0, dropout_output=False, rnn_type=nn.LSTM,
-                            concat_layers=False, padding=False)
+                                     dropout_rate=0, dropout_output=False, rnn_type=nn.LSTM,
+                                     concat_layers=False, padding=False)
 
         self._attention = SoftmaxAttention()
 
@@ -66,8 +66,8 @@ class ESIM(nn.Module):
                                          nn.ReLU())
 
         self._composition = StackedBRNN(self.hidden_size, self.hidden_size, 1,
-                            dropout_rate=0, dropout_output=False, rnn_type=nn.LSTM,
-                            concat_layers=False, padding=False)
+                                        dropout_rate=0, dropout_output=False, rnn_type=nn.LSTM,
+                                        concat_layers=False, padding=False)
 
         self._classification = nn.Sequential(nn.Dropout(p=self.dropout),
                                              nn.Linear(2*4*self.hidden_size,
@@ -105,6 +105,14 @@ class ESIM(nn.Module):
         hypotheses = ex['Btoken']
         premises_mask = ex['Amask']
         hypotheses_mask = ex['Bmask']
+        Amask = torch.ByteTensor(premises.size(0), premises.size(1)).fill_(1)
+        for i, d in enumerate(premises_mask):
+            Amask[i, :d.sum()].fill_(0)
+        Bmask = torch.ByteTensor(hypotheses_mask.size(0), hypotheses_mask.size(1)).fill_(1)
+        for i, d in enumerate(hypotheses_mask):
+            Bmask[i, :d.sum()].fill_(0)
+        premises_mask = Amask.cuda()
+        hypotheses_mask = Bmask.cuda()
 
         embedded_premises = self.word_embedding(premises)
         embedded_hypotheses = self.word_embedding(hypotheses)
@@ -160,8 +168,7 @@ class ESIM(nn.Module):
         v = torch.cat([v_a_avg, v_a_max, v_b_avg, v_b_max], dim=1)
 
         logits = self._classification(v)
-        log_prob = nn.functional.log_softmax(logits, dim=-1)
-        return log_prob
+        return logits
 
 
 def _init_esim_weights(module):

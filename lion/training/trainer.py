@@ -27,6 +27,7 @@ DEFAULTS = {'batch_size': 32,
             'min_cnt': 0,
             'grad_clipping': 10,
             'weight_decay': 0,
+            'patience': 5,
             'embedding_file': None,
             'fix_embeddings': True,
             'sorted': True,
@@ -87,6 +88,7 @@ def train():
 
     model = MatchingModel(params, state_dict=None)
     best_metric = 0
+    best_epoch = 0
     for epoch in range(params.epoches):
         loss = model.train_epoch(train_loader)
         logger.info('loss {}'.format(loss))
@@ -94,8 +96,11 @@ def train():
         result = model.evaluate_epoch(dev_loader)
         writer.add_scalar('dev/acc', result['acc'], epoch)
         if result['acc'] > best_metric:
+            best_epoch = epoch
             best_metric = result['acc']
             model.save(osp.join(args.output_dir, MODEL_FILE))
+        elif epoch >= best_epoch+params.patience:
+            break
     logger.info('Best metric:{}'.format(best_metric))
 
 
@@ -139,8 +144,6 @@ if __name__ == '__main__':
     parser.add_argument('--evaluate', action='store_true', help='Evaluating')
     parser.add_argument('--predict', action='store_true', help='Predicting')
     parser.add_argument('--output_dir', type=str, required=True, help='Output path')
-    parser.add_argument('--dev_file', type=str, default='', help='File for evaluate')
-    parser.add_argument('--test_file', type=str, default='', help='File for test')
     args = parser.parse_args()
     config_file = osp.join(args.output_dir, 'params.yaml')
     if not osp.isfile(config_file):
