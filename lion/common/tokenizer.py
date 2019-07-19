@@ -152,7 +152,7 @@ class SpacyTokenizer(Tokenizer):
         nlp_kwargs = {'parser': False}
         nlp_kwargs['tagger'] = True
         nlp_kwargs['entity'] = True
-        self.nlp = spacy.load('en', **nlp_kwargs)
+        self.nlp = spacy.load("en_core_web_sm")
 
     def tokenize(self, text):
         # We don't treat new lines as tokens.

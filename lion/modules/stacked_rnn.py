@@ -18,7 +18,8 @@ class StackedBRNN(nn.Module):
         >>> import torch
         >>> layer = StackedBRNN(12,12,2)
         >>> input = torch.Tensor(32, 10, 12)
-        >>> output = layer(input)
+        >>> mask = torch.LongTensor(32,10).fill_(1)
+        >>> output = layer(input, mask)
         >>> assert output.size(1) == 10
         """
         super(StackedBRNN, self).__init__()
@@ -152,9 +153,3 @@ class StackedBRNN(nn.Module):
                                training=self.training)
         return output
 
-if __name__ == '__main__':
-     layer = StackedBRNN(12,12,2)
-     input = torch.Tensor(32, 10, 12)
-     mask = torchByteTensor(32,10).fill_(0)
-     output = layer(input)
-     assert output.size(1) == 10

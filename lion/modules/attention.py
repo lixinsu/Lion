@@ -86,14 +86,14 @@ class SoftmaxAttention(Attention):
         """
         similarity_matrix = v1.bmm(v2.transpose(2, 1).contiguous())
 
-        prem_hyp_attn = F.softmax(similarity_matrix.fill_(v1_mask.unsqueeze(2), -float('inf')), dim=1)
-        hyp_prem_attn = F.softmax(similarity_matrix.fill_(v2_mask.unsqueeze(1), -float('inf')), dim=2)
+        prem_hyp_attn = F.softmax(similarity_matrix.masked_fill(v1_mask.unsqueeze(2), -float('inf')), dim=1)
+        hyp_prem_attn = F.softmax(similarity_matrix.masked_fill(v2_mask.unsqueeze(1), -float('inf')), dim=2)
 
         attended_premises = hyp_prem_attn.bmm(v2)
         attended_hypotheses = prem_hyp_attn.transpose(1, 2).bmm(v1)
 
-        attended_premises.fill_(v1_mask.unsqueeze(2), 0)
-        attended_hypotheses.fill_(v2_mask.unsqueeze(2), 0)
+        attended_premises.masked_fill_(v1_mask.unsqueeze(2), 0)
+        attended_hypotheses.masked_fill_(v2_mask.unsqueeze(2), 0)
 
         return attended_premises, attended_hypotheses
 

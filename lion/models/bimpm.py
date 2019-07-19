@@ -3,7 +3,6 @@
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 from lion.modules.layer_match import FullLayerMatch, MaxPoolingLayerMatch
 from lion.modules.attention import BasicAttention
@@ -263,9 +262,9 @@ class BIMPM(nn.Module):
         output = self.dropout(output)
 
         # ----- Prediction Layer -----
-        output = F.tanh(self.pred_fc1(output))
+        output = torch.tanh(self.pred_fc1(output))
         output = self.dropout(output)
         logits = self.pred_fc2(output)
-        log_prob = nn.functional.log_softmax(logits, dim=-1)
+        # log_prob = nn.functional.log_softmax(logits, dim=-1)
 
-        return log_prob
+        return logits

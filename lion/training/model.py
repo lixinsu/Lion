@@ -4,13 +4,11 @@
 import numpy as np
 import copy
 
-from tqdm import tqdm
 import torch
-import torch.optim as optim
-import torch.nn.functional as F
-from torch.nn import CrossEntropyLoss
-
+from tqdm import tqdm
 from loguru import logger
+import torch.optim as optim
+from torch.nn import CrossEntropyLoss
 
 from lion.common.utils import AverageMeter
 from lion.training.optimizers import BertAdam
@@ -34,10 +32,7 @@ class MatchingModel:
             self.load_embedding(params.word_dict, params.embedding_file)
 
     def init_optimizer(self):
-        """Initialize an optimizer for the free parameters of the network.
-        Args:
-            state_dict: network parameters
-        """
+        """Initialize an optimizer for the free parameters of the network. """
         if self.params.fix_embeddings:
             for p in self.network.word_embedding.parameters():
                 p.requires_grad = False
@@ -86,12 +81,9 @@ class MatchingModel:
             for k in ex.keys():
                 if k != 'ids':
                     ex[k] = ex[k].cuda()
-        logproba = self.network(ex)
-        if self.params.loss_function.lower() == 'cross_entropy':
-            loss_fct = CrossEntropyLoss()
-            loss = loss_fct(logproba.view(-1, self.params.classes), ex['labels'].view(-1))
-        else:
-            loss = F.nll_loss(logproba, ex['labels'])
+        logits = self.network(ex)
+        loss_fct = CrossEntropyLoss()
+        loss = loss_fct(logits.view(-1, self.params.classes), ex['labels'].view(-1))
         loss.backward()
         torch.nn.utils.clip_grad_norm_(self.network.parameters(),
                                        self.params.grad_clipping)
@@ -117,10 +109,9 @@ class MatchingModel:
                     ex[k] = ex[k].cuda()
         # Run forward
         with torch.no_grad():
-            logproba = self.network(ex)
-        proba = torch.exp(logproba)
-        pred = torch.argmax(proba, dim=1)
-        return pred.tolist(), proba.tolist()
+            logits = self.network(ex)
+        pred = torch.argmax(logits, dim=1)
+        return pred.tolist(), logits.tolist()
 
     def predict_epoch(self, data_loader):
         rv = {}
