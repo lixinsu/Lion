@@ -1,6 +1,6 @@
 train_file: data/preprocessed/QQP/train_spacy.jsonl
 dev_file: data/preprocessed/QQP/dev_spacy.jsonl
 meta_dir: data/preprocessed/QQP/
-embedding_file: data/embeddings/glove.840B.300d.txt
+embedding_file: "data/embeddings/glove.840B.300d.txt"
 network: bimpm
 use_cuda: true
