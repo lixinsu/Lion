@@ -19,7 +19,9 @@ class ESIM(nn.Module):
 
     MODEL_DEFAULTS = {'dropout': 0.1,
                       'hidden_size': 100,
-                      'word_dim': 300}
+                      'word_dim': 300,
+                      'ner_dim': 20,
+                      }
 
     def __init__(self, args):
         """
@@ -47,10 +49,13 @@ class ESIM(nn.Module):
         self.num_classes = args['classes']
         self.dropout = args['dropout']
 
+        self.ner_emb = nn.Embedding(args['ner_dict_size'],
+                                    args['ner_dim'], padding_idx=0)
         self.word_embedding = nn.Embedding(self.vocab_size + 1,
                                            self.embedding_dim,
                                            padding_idx=0,
                                            _weight=None)
+        self.embedding_dim += int(args['ner_dim'])
 
         if self.dropout:
             self._rnn_dropout = RNNDropout(p=self.dropout)
@@ -105,6 +110,8 @@ class ESIM(nn.Module):
         hypotheses = ex['Btoken']
         premises_mask = ex['Amask']
         hypotheses_mask = ex['Bmask']
+        premises_ner = ex['Aner']
+        hypotheses_ner = ex['Bner']
         Amask = torch.ByteTensor(premises.size(0), premises.size(1)).fill_(1)
         for i, d in enumerate(premises_mask):
             Amask[i, :d.sum()].fill_(0)
@@ -116,6 +123,12 @@ class ESIM(nn.Module):
 
         embedded_premises = self.word_embedding(premises)
         embedded_hypotheses = self.word_embedding(hypotheses)
+        ner_emd_premise = self.ner_emb(premises_ner)
+        ner_emd_hypothese = self.ner_emb(hypotheses_ner)
+
+        # (batch, seq_len, word_dim + char_hidden_size)
+        embedded_premises = torch.cat([embedded_premises, ner_emd_premise], dim=-1)
+        embedded_hypotheses = torch.cat([embedded_hypotheses, ner_emd_hypothese], dim=-1)
 
         if self.dropout:
             embedded_premises = self._rnn_dropout(embedded_premises)
@@ -175,10 +188,16 @@ def _init_esim_weights(module):
     """
     Initialise the weights of the ESIM model.
     """
+    # # Word Representation Layer
+    # nn.init.uniform_(module.char_emb.weight, -0.005, 0.005)
+    # # zero vectors for padding
+    # module.char_emb.weight.data[0].fill_(0)
+
     if isinstance(module, nn.Linear):
         nn.init.xavier_uniform_(module.weight.data)
         nn.init.constant_(module.bias.data, 0.0)
-
+    elif isinstance(module, nn.Embedding):
+        module.weight.data.normal_(mean=0.0, std=0.02)
     elif isinstance(module, nn.LSTM):
         nn.init.xavier_uniform_(module.weight_ih_l0.data)
         nn.init.orthogonal_(module.weight_hh_l0.data)
