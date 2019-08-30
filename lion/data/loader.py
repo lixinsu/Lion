@@ -49,7 +49,7 @@ def batchify_factory(max_A_len=None, max_B_len=None):
             if 'char' not in k:
                 padded_data = torch.LongTensor(len(batch_data), max_len).fill_(0)
             else:
-                padded_data = torch.LongTensor(len(batch_data), max_len, 16).fill_(0)
+                padded_data = torch.LongTensor(len(batch_data), max_len, 10).fill_(0)
             if 'A' in k and 'Amask' not in rv and 'Asegment' not in rv:
                 Amask = torch.LongTensor(len(batch_data), max_len).fill_(0)
                 # Amask = torch.ByteTensor(len(batch_data), max_len).fill_(1)

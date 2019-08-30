@@ -14,7 +14,7 @@ class BIMPM(nn.Module):
     Implementation of the BIMPM model presented in the paper "Bilateral Multi-Perspective
     Matching for Natural Language Sentences" by Wang et al.
     """
-    MODEL_DEFAULTS = {'max_word_length': 16,
+    MODEL_DEFAULTS = {'max_word_length': 10,
                         'dropout': 0.1,
                         'num_perspective': 20,
                         'use_char_emb': True,
@@ -30,6 +30,7 @@ class BIMPM(nn.Module):
         self.fill_default_parameters()
         self.input_size = self.args['word_dim'] + int(self.args['use_char_emb']) * self.args['char_hidden_size']
         self.num_perspective = self.args['num_perspective']
+
         # Word Representation Layer
         self.char_emb = nn.Embedding(args['char_dict_size'],args['char_dim'], padding_idx=0)
         self.word_embedding = nn.Embedding(args['word_dict_size'], args['word_dim'])
@@ -45,6 +46,7 @@ class BIMPM(nn.Module):
             num_layers=1,
             bidirectional=False,
             batch_first=True)
+
         # Context Representation Layer
         self.context_LSTM = nn.LSTM(
             input_size=self.input_size,
@@ -53,10 +55,12 @@ class BIMPM(nn.Module):
             bidirectional=True,
             batch_first=True
         )
+
         # Matching Layer
         for i in range(1, 9):
             setattr(self, f'mp_w{i}',
                     nn.Parameter(torch.rand(self.num_perspective, self.args['hidden_size'])))
+
         # Aggregation Layer
         self.aggregation_LSTM = nn.LSTM(
             input_size=self.num_perspective * 8,
@@ -65,7 +69,7 @@ class BIMPM(nn.Module):
             bidirectional=True,
             batch_first=True
         )
-        # ----- Prediction Layer -----
+        # Prediction Layer
         self.pred_fc1 = nn.Linear(self.args['hidden_size'] * 4, self.args['hidden_size'] * 2)
         self.pred_fc2 = nn.Linear(self.args['hidden_size'] * 2, self.args['classes'])
 
@@ -133,7 +137,8 @@ class BIMPM(nn.Module):
         # (batch, seq_len) -> (batch, seq_len, word_dim)
         A = self.word_embedding(ex['Atoken'])
         B = self.word_embedding(ex['Btoken'])
-
+        Amask = ex['Amask'].unsqueeze(2).float()
+        Bmask = ex['Bmask'].unsqueeze(2).float()
 
 
         if self.args.use_char_emb:
@@ -158,13 +163,14 @@ class BIMPM(nn.Module):
 
         A = self.dropout(A)
         B = self.dropout(B)
-        # ----- Context Representation Layer -----
+
+        # Context Representation Layer
         # (batch, seq_len, hidden_size * 2)
         context_A, _ = self.context_LSTM(A)
         context_B, _ = self.context_LSTM(B)
 
-        context_A = self.dropout(context_A)
-        context_B = self.dropout(context_B)
+        context_A = self.dropout(context_A*Amask)
+        context_B = self.dropout(context_B*Bmask)
 
         # (batch, seq_len, hidden_size)
         context_A_fw, context_A_bw = torch.split(context_A, self.args['hidden_size'], dim=-1)
@@ -245,10 +251,10 @@ class BIMPM(nn.Module):
             [mv_B_full_fw, mv_B_max_fw, mv_B_att_mean_fw, mv_B_att_max_fw,
              mv_B_full_bw, mv_B_max_bw, mv_B_att_mean_bw, mv_B_att_max_bw], dim=2)
 
-        mv_A = self.dropout(mv_A)
-        mv_B = self.dropout(mv_B)
+        mv_A = self.dropout(mv_A)*Amask
+        mv_B = self.dropout(mv_B)*Bmask
 
-        # ----- Aggregation Layer -----
+        # Aggregation Layer
         # (batch, seq_len, l * 8) -> (2, batch, hidden_size)
         _, (agg_A_last, _) = self.aggregation_LSTM(mv_A)
         _, (agg_B_last, _) = self.aggregation_LSTM(mv_B)
@@ -259,7 +265,7 @@ class BIMPM(nn.Module):
              agg_B_last.permute(1, 0, 2).contiguous().view(-1, self.args['hidden_size'] * 2)], dim=1)
         output = self.dropout(output)
 
-        # ----- Prediction Layer -----
+        # Prediction Layer
         output = torch.tanh(self.pred_fc1(output))
         output = self.dropout(output)
         logits = self.pred_fc2(output)

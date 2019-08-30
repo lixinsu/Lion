@@ -60,11 +60,11 @@ class LionDataset(Dataset):
         Aner = torch.LongTensor([ner_dict[w] if w is not None else 0 for w in ex['Aner']])
         Bner = torch.LongTensor([ner_dict[w] if w is not None else 0 for w in ex['Bner']])
 
-        def make_char(char_dict, token, word_length=16):
-            if len(token) > 16:
-                return [char_dict[t_] for t_ in token[:8]] + [char_dict[t_] for t_ in token[-8:]]
+        def make_char(char_dict, token, word_length=10):
+            if len(token) > word_length:
+                return [char_dict[t_] for t_ in token[:5]] + [char_dict[t_] for t_ in token[-5:]]
             else:
-                rv = [0] * 16
+                rv = [0] * word_length
                 for i in range(len(token)):
                     rv[i] = char_dict[token[i]]
                 return rv
