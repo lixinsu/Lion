@@ -5,8 +5,7 @@ import torch
 import torch.nn as nn
 
 from lion.modules.layer_match import FullLayerMatch, MaxPoolingLayerMatch
-from lion.modules.attention import BasicAttention
-from lion.modules.utils import div_with_small_value
+from lion.modules.attention import CosineAttention
 
 
 class BIMPM(nn.Module):
@@ -37,7 +36,7 @@ class BIMPM(nn.Module):
         self.word_embedding.weight.requires_grad = False
         self.full_match = FullLayerMatch()
         self.max_pooling_match = MaxPoolingLayerMatch()
-        self.attention= BasicAttention()
+        self.attention = CosineAttention()
 
         self.char_LSTM = nn.LSTM(
             input_size=self.args['char_dim'],
@@ -209,12 +208,12 @@ class BIMPM(nn.Module):
         att_A_bw = context_A_bw.unsqueeze(2) * att_bw.unsqueeze(3)
 
         # (batch, seq_len1, hidden_size) / (batch, seq_len1, 1) -> (batch, seq_len1, hidden_size)
-        att_mean_B_fw = div_with_small_value(att_B_fw.sum(dim=2), att_fw.sum(dim=2, keepdim=True))
-        att_mean_B_bw = div_with_small_value(att_B_bw.sum(dim=2), att_bw.sum(dim=2, keepdim=True))
+        att_mean_B_fw = att_B_fw.sum(dim=2) / (att_fw.sum(dim=2, keepdim=True) + 1e-13)
+        att_mean_B_bw = att_B_bw.sum(dim=2)/ (att_bw.sum(dim=2, keepdim=True) + 1e-13)
 
         # (batch, seq_len2, hidden_size) / (batch, seq_len2, 1) -> (batch, seq_len2, hidden_size)
-        att_mean_A_fw = div_with_small_value(att_A_fw.sum(dim=1), att_fw.sum(dim=1, keepdim=True).permute(0, 2, 1))
-        att_mean_A_bw = div_with_small_value(att_A_bw.sum(dim=1), att_bw.sum(dim=1, keepdim=True).permute(0, 2, 1))
+        att_mean_A_fw = att_A_fw.sum(dim=1) / (att_fw.sum(dim=1, keepdim=True).permute(0, 2, 1) + 1e-13)
+        att_mean_A_bw = att_A_bw.sum(dim=1) / (att_bw.sum(dim=1, keepdim=True).permute(0, 2, 1) + 1e-13)
 
         # (batch, seq_len, l)
         mv_A_att_mean_fw = self.full_match(context_A_fw, att_mean_B_fw, self.mp_w5)
