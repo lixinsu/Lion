@@ -20,6 +20,7 @@ class LionDataset(Dataset):
         self.char_dict = args.char_dict
         self.pos_dict = args.pos_dict
         self.ner_dict = args.ner_dict
+        self.use_elmo = args.use_elmo
 
     def _load_json(self, data_file):
         data = [json.loads(line) for line in open(data_file)]
@@ -51,9 +52,14 @@ class LionDataset(Dataset):
             ex['Btokens'] = ex['Btokens'][0:self.length_limit]
             ex['Bpos'] = ex['Bpos'][0:self.length_limit]
             ex['Bner'] = ex['Bner'][0:self.length_limit]
-        Atoken = torch.LongTensor([word_dict[w] for w in ex['Atokens']])
-        Btoken = torch.LongTensor([word_dict[w] for w in ex['Btokens']])
 
+        if self.use_elmo:
+            # Not index words
+            Atoken = ex['Atokens']
+            Btoken = ex['Btokens']
+        else:
+            Atoken = torch.LongTensor([word_dict[w] for w in ex['Atokens']])
+            Btoken = torch.LongTensor([word_dict[w] for w in ex['Btokens']])
         Apos = torch.LongTensor([pos_dict[w] if w is not None else 0 for w in ex['Apos']])
         Bpos = torch.LongTensor([pos_dict[w] if w is not None else 0 for w in ex['Bpos']])
 

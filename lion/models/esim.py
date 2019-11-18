@@ -44,7 +44,6 @@ class ESIM(nn.Module):
         self.hidden_size = args['hidden_size']
         self.num_classes = args['classes']
         self.dropout = args['dropout']
-
         self.word_embedding = nn.Embedding(self.vocab_size + 1,
                                            self.embedding_dim,
                                            padding_idx=0,
@@ -111,9 +110,12 @@ class ESIM(nn.Module):
             Bmask[i, :d.sum()].fill_(0)
         premises_mask = Amask.cuda()
         hypotheses_mask = Bmask.cuda()
-
-        embedded_premises = self.word_embedding(premises)
-        embedded_hypotheses = self.word_embedding(hypotheses)
+        if self.args['use_elmo']:
+            embedded_premises = self.word_embedding(premises)['elmo_representations'][0]
+            embedded_hypotheses = self.word_embedding(hypotheses)['elmo_representations'][0]
+        else:
+            embedded_premises = self.word_embedding(premises)
+            embedded_hypotheses = self.word_embedding(hypotheses)
 
         if self.dropout:
             embedded_premises = self._rnn_dropout(embedded_premises)

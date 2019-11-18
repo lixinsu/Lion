@@ -23,13 +23,21 @@ class MatchingModel:
         else:
             self.network = get_model_class(params.network)(params)
         params.use_cuda = params.use_cuda if torch.cuda.is_available() else False
-        if params.use_cuda:
-            self.network.cuda()
         self.init_optimizer()
         if state_dict is not None:
             self.network.load_state_dict(state_dict)
         if params.embedding_file and state_dict is None:
             self.load_embedding(params.word_dict, params.embedding_file)
+        if params.use_elmo:
+            assert params.word_dim == 1024  # elmo's embedding dim
+            from allennlp.modules.elmo import Elmo
+            options_file = "https://allennlp.s3.amazonaws.com/models/elmo/2x4096_512_2048cnn_2xhighway/" \
+                           "elmo_2x4096_512_2048cnn_2xhighway_options.json"
+            weight_file = "https://allennlp.s3.amazonaws.com/models/elmo/2x4096_512_2048cnn_2xhighway/" \
+                          "elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5"
+            self.network.word_embedding = Elmo(options_file, weight_file, 1, dropout=0)
+        if params.use_cuda:
+            self.network.cuda()
 
     def init_optimizer(self):
         """Initialize an optimizer for the free parameters of the network. """

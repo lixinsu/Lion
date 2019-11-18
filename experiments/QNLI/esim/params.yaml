@@ -4,3 +4,6 @@ train_file: data/preprocessed/QNLI/train_spacy.jsonl
 embedding_file: data/embeddings/glove.840B.300d.txt
 network: esim
 use_cuda: true
+#use_elmo: true
+#word_dim: 1024
+#convert_token_to_id: false
