@@ -1,13 +1,6 @@
 import math
 import torch
-import torch.nn as nn
 """Tensor utility"""
-
-
-def div_with_small_value(n, d, eps=1e-8):
-    # too small values are replaced by 1e-8 to prevent it from exploding.
-    d = d * (d > eps).float() + eps * (d <= eps).float()
-    return n / d
 
 
 def sort_by_seq_lens(batch, sequences_lengths, descending=True):

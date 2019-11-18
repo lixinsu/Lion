@@ -3,12 +3,10 @@
 
 import torch
 import torch.nn as nn
-from torch.nn import functional as F
 
 from lion.modules.dropout import RNNDropout
-#from lion.modules.seq2seq_encoder import Seq2SeqEncoder
 from lion.modules.stacked_rnn import StackedBRNN
-from lion.modules.attention import SoftmaxAttention
+from lion.modules.attention import DotProductAttention, masked_softmax
 
 
 class ESIM(nn.Module):
@@ -59,7 +57,7 @@ class ESIM(nn.Module):
                                      dropout_rate=0, dropout_output=False, rnn_type=nn.LSTM,
                                      concat_layers=False, padding=False)
 
-        self._attention = SoftmaxAttention()
+        self._attention = DotProductAttention()
 
         self._projection = nn.Sequential(nn.Linear(4*2*self.hidden_size,
                                                    self.hidden_size),
@@ -126,9 +124,13 @@ class ESIM(nn.Module):
         encoded_hypotheses = self._encoding(embedded_hypotheses,
                                             hypotheses_mask)
 
-        attended_premises, attended_hypotheses =\
-            self._attention(encoded_premises, encoded_hypotheses,
+        attention_weight = self._attention(encoded_premises, encoded_hypotheses,
                             premises_mask, hypotheses_mask)
+        premises_att_weigth = masked_softmax(attention_weight, premises_mask,  dim=1)
+        hypotheses_att_weigth = masked_softmax(attention_weight, hypotheses_mask)
+
+        attended_premises = hypotheses_att_weigth.bmm(encoded_hypotheses)
+        attended_hypotheses = premises_att_weigth.transpose(1, 2).bmm(encoded_premises)
 
         enhanced_premises = torch.cat([encoded_premises,
                                        attended_premises,

@@ -3,99 +3,70 @@
 import math
 
 import torch
-import torch.nn as nn
+import torch.nn as nn, Parameter
 from torch.nn import functional as F
-
-from .utils import div_with_small_value
 
 
 class Attention(nn.Module):
     """Attention weights are computed by q, k and v, since k and v are always the same,
     so here we implement this for simple."""
-    def __init__(self):
-        super(Attention, self).__init__()
+    def __init__(self, normalize=False):
+        super().__init__()
+        self._normalize = normalize
 
-    def forward(self, v1, v2, v1_mask=None, v2_mask=None):
+    def forward(self, q, k, q_mask=None, k_mask=None):
         raise NotImplementedError
 
 
-class BasicAttention(Attention):
-    """Basic Attention.
+class DotProductAttention(Attention):
+    """Dot Product style for computing similarity between q and k."""
+    def forward(self, q, k, q_mask=None, k_mask=None):
+        similarities = torch.bmm(q, k.permute(0, 2, 1))
 
-    Examples:
-         >>> x = BasicAttention()
-         >>> v1 = torch.Tensor(1,2,3)
-         >>> v2 = torch.Tensor(1,3,3)
-         >>> w = torch.Tensor(1,1,1)
-         >>> out = x(v1, v2, w)
-         >>> assert list(out.size()) == [1, 2, 3]
-    """
+        if self._normalize:
+            # normalize q as default
+            return masked_softmax(similarities, q_mask, dim=1)
 
-    def forward(self, v1, v2, v1_mask=None, v2_mask=None):
-        """
-        :param v1: (batch, seq_len1, hidden_size)
-        :param v2: (batch, seq_len2, hidden_size)
-        :return: (batch, seq_len1, seq_len2)
-        """
-
-        # (batch, seq_len1, 1)
-        v1_norm = v1.norm(p=2, dim=2, keepdim=True)
-        # (batch, 1, seq_len2)
-        v2_norm = v2.norm(p=2, dim=2, keepdim=True).permute(0, 2, 1)
-
-        # (batch, seq_len1, seq_len2)
-        # batch matrix-matrix product of matrices
-        a = torch.bmm(v1, v2.permute(0, 2, 1))
-        d = v1_norm * v2_norm
-
-        return div_with_small_value(a, d)
+        return similarities
 
 
-class SoftmaxAttention(Attention):
-    """
-    Attention layer taking premises and hypotheses encoded by an RNN as input
-    and computing the soft attention between their elements.
+class CosineAttention(Attention):
+    """Cosine style for computing similarity between q and k."""
 
-    The dot product of the encoded vectors in the premises and hypotheses is
-    first computed. The softmax of the result is then used in a weighted sum
-    of the vectors of the premises for each element of the hypotheses, and
-    conversely for the elements of the premises.
-    """
+    def forward(self, q, k, q_mask=None, k_mask=None):
+        q_norm = q.norm(p=2, dim=-1, keepdim=True) + 1e-13
+        k_norm = (k.norm(p=2, dim=-1, keepdim=True) + 1e-13).permute(0, 2, 1)
+        similarities = torch.bmm(q, k.permute(0, 2, 1)) / (q_norm * k_norm)
 
-    def forward(self, v1, v2, v1_mask=None, v2_mask=None):
-        """
-        Args:
-            v1: A batch of sequences of vectors representing the
-                premises in some NLI task. The batch is assumed to have the
-                size (batch, sequences, vector_dim).
-            v1_mask: A mask for the sequences in the premise batch, to
-                ignore padding data in the sequences during the computation of
-                the attention.
-            v2: A batch of sequences of vectors representing the
-                hypotheses in some NLI task. The batch is assumed to have the
-                size (batch, sequences, vector_dim).
-            v2_mask: A mask for the sequences in the hypotheses batch,
-                to ignore padding data in the sequences during the computation
-                of the attention.
+        if self._normalize:
+            # normalize q as default
+            return masked_softmax(similarities, q_mask, dim=1)
 
-        Returns:
-            attended_premises: The sequences of attention vectors for the
-                premises in the input batch.
-            attended_hypotheses: The sequences of attention vectors for the
-                hypotheses in the input batch.
-        """
-        similarity_matrix = v1.bmm(v2.transpose(2, 1).contiguous())
+        return similarities
 
-        prem_hyp_attn = F.softmax(similarity_matrix.masked_fill(v1_mask.unsqueeze(2), -float('inf')), dim=1)
-        hyp_prem_attn = F.softmax(similarity_matrix.masked_fill(v2_mask.unsqueeze(1), -float('inf')), dim=2)
 
-        attended_premises = hyp_prem_attn.bmm(v2)
-        attended_hypotheses = prem_hyp_attn.transpose(1, 2).bmm(v1)
+class BilinearAttention(Attention):
+    """Bilinear style for computing similarity between q and k."""
+    def __init__(self, embedding_dim, activation=None, normalize=False):
+        super().__init__(normalize)
+        self._weight_matrix = Parameter(torch.Tensor(embedding_dim, embedding_dim))
+        self._bias = Parameter(torch.Tensor(1))
+        self._activation = activation if not activation else lambda: lambda x: x,
+        self.reset_parameters()
 
-        attended_premises.masked_fill_(v1_mask.unsqueeze(2), 0)
-        attended_hypotheses.masked_fill_(v2_mask.unsqueeze(2), 0)
+    def reset_parameters(self):
+        torch.nn.init.xavier_uniform_(self._weight_matrix)
+        self._bias.data.fill_(0)
 
-        return attended_premises, attended_hypotheses
+    def forward(self, q, k, q_mask=None, k_mask=None):
+        intermediate = q.mm(self._weight_matrix)
+        similarities = self._activation(intermediate.bmm(k.transpose(1, 2)) + self._bias)
+
+        if self._normalize:
+            # normalize q as default
+            return masked_softmax(similarities, q_mask, dim=1)
+
+        return similarities
 
 
 class MultiHeadedAttention(Attention):
@@ -125,10 +96,10 @@ class MultiHeadedAttention(Attention):
         new_x_shape = x.size()[:-2] + (self.all_head_size,)
         return x.view(*new_x_shape)  # in Tensorflow implem: fct merge_states
 
-    def forward(self, v1, v2=None, v1_mask=None, v2_mask=None):
-        mixed_query_layer = self.query(v1)
-        mixed_key_layer = self.key(v1)
-        mixed_value_layer = self.value(v1)
+    def forward(self, q, k=None, q_mask=None, k_mask=None):
+        mixed_query_layer = self.query(q)
+        mixed_key_layer = self.key(q)
+        mixed_value_layer = self.value(q)
 
         # batch_size*num_attention_heads*sequence*attention_head_size
         query_layer = self.split_heads(mixed_query_layer)
@@ -141,7 +112,7 @@ class MultiHeadedAttention(Attention):
         attention_scores = attention_scores / math.sqrt(self.attention_head_size)
         # Apply the attention mask is (precomputed for all layers in BertModel forward() function)
         # attention_mask: [batch_size, 1, 1, sequence_length]
-        attention_scores = attention_scores + v1_mask
+        attention_scores = attention_scores + q_mask
 
         # Normalize the attention scores to probabilities.
         attention_probs = nn.Softmax(dim=-1)(attention_scores)
@@ -155,3 +126,21 @@ class MultiHeadedAttention(Attention):
         context_layer = self.merge_heads(context_layer)
 
         return context_layer
+
+
+def masked_softmax(similarity, mask, dim=-1):
+    if mask is None:
+        masked_softmax_similarity = F.softmax(similarity, dim=dim)
+    else:
+        mask = mask.float()
+        if mask.dim() < similarity.dim() and dim == 1:
+            # compute q's attention weight
+            mask = mask.unsqueeze(2)
+        elif mask.dim() < similarity.dim() and dim != 1:
+            # compute k's attention weight
+            mask = mask.unsqueeze(1)
+
+        masked_vector = similarity.masked_fill(mask.to(dtype=torch.bool), -1e32)
+        masked_softmax_similarity = torch.nn.functional.softmax(masked_vector, dim=dim)
+
+    return masked_softmax_similarity
