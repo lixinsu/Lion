@@ -64,7 +64,7 @@ class BIMPM(nn.Module):
             bidirectional=True,
             batch_first=True
         )
-        # ----- Prediction Layer -----
+        # Prediction Layer
         self.pred_fc1 = nn.Linear(self.args['hidden_size'] * 4, self.args['hidden_size'] * 2)
         self.pred_fc2 = nn.Linear(self.args['hidden_size'] * 2, self.args['classes'])
 

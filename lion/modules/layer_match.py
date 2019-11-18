@@ -5,8 +5,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .utils import div_with_small_value
-
 
 class LayerMatch(nn.Module):
     def __init__(self):
@@ -132,6 +130,6 @@ class MaxPoolingLayerMatch(LayerMatch):
         d = v1_norm * v2_norm.transpose(2, 3)
 
         # (batch, seq_len1, seq_len2, l)
-        m = div_with_small_value(n, d).permute(0, 2, 3, 1)
+        m = (n / (d + 1e-13)).permute(0, 2, 3, 1)
 
         return m

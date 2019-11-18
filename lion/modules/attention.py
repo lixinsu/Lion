@@ -3,7 +3,7 @@
 import math
 
 import torch
-import torch.nn as nn, Parameter
+import torch.nn as nn
 from torch.nn import functional as F
 
 
@@ -49,8 +49,8 @@ class BilinearAttention(Attention):
     """Bilinear style for computing similarity between q and k."""
     def __init__(self, embedding_dim, activation=None, normalize=False):
         super().__init__(normalize)
-        self._weight_matrix = Parameter(torch.Tensor(embedding_dim, embedding_dim))
-        self._bias = Parameter(torch.Tensor(1))
+        self._weight_matrix = torch.nn.Parameter(torch.Tensor(embedding_dim, embedding_dim))
+        self._bias = torch.nn.Parameter(torch.Tensor(1))
         self._activation = activation if not activation else lambda: lambda x: x,
         self.reset_parameters()
 
