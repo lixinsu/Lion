@@ -35,21 +35,25 @@ class SortedBatchSampler(data.Sampler):
 
 def batchify_factory(max_A_len=None, max_B_len=None, elmo_batch=None):
     def batchify(batch):
+        key_list = ['Atoken_ids', 'Apos_ids', 'Aner_ids', 'Achar_ids',
+                    'Btoken_ids', 'Bpos_ids', 'Bner_ids', 'Bchar_ids']
         ids = [ex['id'] for ex in batch]
         labels = [ex.get('label', 0) for ex in batch]
         rv = {}
         rv['ids'] = ids
         rv['labels'] = torch.LongTensor(labels)
         Amask, Bmask, Asegment, Bsegment = None, None, None, None
-        for k in ['Atoken', 'Apos', 'Aner', 'Btoken', 'Bpos', 'Bner', 'Achar', 'Bchar']:
+        if elmo_batch:
+            key_list += ['Atoken', 'Btoken']
+        for k in key_list:
             batch_data = [ex[k] for ex in batch]
-            if 'token' in k and elmo_batch:
+            if k.endswith('token') and elmo_batch:
                 batch_data = elmo_batch(batch_data)
             unified_max_len = max_A_len if 'A' in k else max_B_len      # For CNN model with fixed length on whole dataset
             current_max_len = max([d.size(0) for d in batch_data])
             max_len = unified_max_len or current_max_len
             if 'char' not in k:
-                if 'token' in k and elmo_batch:
+                if k.endswith('token') and elmo_batch:
                     # 50 is the character dim of elmo
                     padded_data = torch.LongTensor(len(batch_data), max_len, 50).fill_(0)
                 else:

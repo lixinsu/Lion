@@ -26,16 +26,21 @@ class MatchingModel:
         self.init_optimizer()
         if state_dict is not None:
             self.network.load_state_dict(state_dict)
-        if params.embedding_file and state_dict is None:
-            self.load_embedding(params.word_dict, params.embedding_file)
         if params.use_elmo:
-            assert params.word_dim == 1024  # elmo's embedding dim
             from allennlp.modules.elmo import Elmo
             options_file = "https://allennlp.s3.amazonaws.com/models/elmo/2x4096_512_2048cnn_2xhighway/" \
                            "elmo_2x4096_512_2048cnn_2xhighway_options.json"
             weight_file = "https://allennlp.s3.amazonaws.com/models/elmo/2x4096_512_2048cnn_2xhighway/" \
                           "elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5"
-            self.network.word_embedding = Elmo(options_file, weight_file, 1, dropout=0)
+            if params.use_elmo == 'only':
+                self.network.word_embedding = Elmo(options_file, weight_file, 1, dropout=0)
+            elif params.use_elmo == 'concat':
+                # concat glove(300) and elmo(1024) embedding
+                self.network.word_embedding = torch.nn.Embedding(self.params.word_dict_size+1, 300,
+                                                                 padding_idx=0, _weight=None)
+                self.network.elmo_embedding = Elmo(options_file, weight_file, 1, dropout=0)
+        if params.embedding_file and state_dict is None:
+            self.load_embedding(params.word_dict, params.embedding_file)
         if params.use_cuda:
             self.network.cuda()
 
@@ -79,7 +84,7 @@ class MatchingModel:
                 f.seek(0)
             for line in f:
                 parsed = line.rstrip().split(' ')
-                assert(len(parsed) == embedding.size(1) + 1)
+                # assert(len(parsed) == embedding.size(1) + 1)
                 w = self.params.word_dict.normalize(parsed[0])
                 if w in words:
                     vec = torch.Tensor([float(i) for i in parsed[1:]])

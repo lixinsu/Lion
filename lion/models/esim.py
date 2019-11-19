@@ -98,8 +98,8 @@ class ESIM(nn.Module):
             probabilities: A tensor of size (batch, num_classes) containing
                 the probabilities of each output class in the model.
         """
-        premises = ex['Atoken']
-        hypotheses = ex['Btoken']
+        premises = ex['Atoken_ids']
+        hypotheses = ex['Btoken_ids']
         premises_mask = ex['Amask']
         hypotheses_mask = ex['Bmask']
         Amask = torch.ByteTensor(premises.size(0), premises.size(1)).fill_(1)
@@ -110,9 +110,22 @@ class ESIM(nn.Module):
             Bmask[i, :d.sum()].fill_(0)
         premises_mask = Amask.cuda()
         hypotheses_mask = Bmask.cuda()
+
         if self.args['use_elmo']:
-            embedded_premises = self.word_embedding(premises)['elmo_representations'][0]
-            embedded_hypotheses = self.word_embedding(hypotheses)['elmo_representations'][0]
+            elmo_premises = ex['Atoken']
+            elmo_hypotheses = ex['Btoken']
+            if self.args['use_elmo'] == 'only':
+                embedded_premises = self.word_embedding(elmo_premises)['elmo_representations'][0]
+                embedded_hypotheses = self.word_embedding(elmo_hypotheses)['elmo_representations'][0]
+            elif self.args['use_elmo'] == 'concat':
+                embedded_premises = self.word_embedding(premises)
+                embedded_hypotheses = self.word_embedding(hypotheses)
+                elmo_embedded_premises = self.elmo_embedding(elmo_premises)['elmo_representations'][0]
+                elmo_embedded_hypotheses = self.elmo_embedding(elmo_hypotheses)['elmo_representations'][0]
+                embedded_premises = torch.cat((embedded_premises, elmo_embedded_premises), dim=-1)
+                embedded_hypotheses = torch.cat((embedded_hypotheses, elmo_embedded_hypotheses), dim=-1)
+            else:
+                raise ValueError('Invalid argument of [use_elmo] :{}'.format(self.args['use_elmo']))
         else:
             embedded_premises = self.word_embedding(premises)
             embedded_hypotheses = self.word_embedding(hypotheses)

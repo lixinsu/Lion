@@ -52,14 +52,13 @@ class LionDataset(Dataset):
             ex['Btokens'] = ex['Btokens'][0:self.length_limit]
             ex['Bpos'] = ex['Bpos'][0:self.length_limit]
             ex['Bner'] = ex['Bner'][0:self.length_limit]
-
+        oriAtoken, oriBtoken = None, None
         if self.use_elmo:
             # Not index words
-            Atoken = ex['Atokens']
-            Btoken = ex['Btokens']
-        else:
-            Atoken = torch.LongTensor([word_dict[w] for w in ex['Atokens']])
-            Btoken = torch.LongTensor([word_dict[w] for w in ex['Btokens']])
+            oriAtoken = ex['Atokens']
+            oriBtoken = ex['Btokens']
+        Atoken = torch.LongTensor([word_dict[w] for w in ex['Atokens']])
+        Btoken = torch.LongTensor([word_dict[w] for w in ex['Btokens']])
         Apos = torch.LongTensor([pos_dict[w] if w is not None else 0 for w in ex['Apos']])
         Bpos = torch.LongTensor([pos_dict[w] if w is not None else 0 for w in ex['Bpos']])
 
@@ -79,14 +78,16 @@ class LionDataset(Dataset):
         Bchar = torch.LongTensor([make_char(char_dict, w) for w in ex['Btokens']])
 
         rv = {'id': ex['id'],
-              'Atoken': Atoken,
-              'Btoken': Btoken,
-              'Achar': Achar,
-              'Bchar': Bchar,
-              'Apos': Apos,
-              'Bpos': Bpos,
-              'Aner': Aner,
-              'Bner': Bner}
+              'Atoken': oriAtoken,
+              'Btoken': oriBtoken,
+              'Atoken_ids': Atoken,
+              'Btoken_ids': Btoken,
+              'Achar_ids': Achar,
+              'Bchar_ids': Bchar,
+              'Apos_ids': Apos,
+              'Bpos_ids': Bpos,
+              'Aner_ids': Aner,
+              'Bner_ids': Bner}
         if 'label' in ex:
             rv['label'] = ex['label']
         return rv
