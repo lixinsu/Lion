@@ -130,10 +130,12 @@ class BIMPM(nn.Module):
     def forward(self, ex):
         # ----- Word Representation Layer -----
         # (batch, seq_len) -> (batch, seq_len, word_dim)
-        A = self.word_embedding(ex['Atoken'])
-        B = self.word_embedding(ex['Btoken'])
-
-
+        if self.args['use_elmo']:
+            A = self.word_embedding(ex['Atoken'])['elmo_representations'][0]
+            B = self.word_embedding(ex['Btoken'])['elmo_representations'][0]
+        else:
+            A = self.word_embedding(ex['Atoken'])
+            B = self.word_embedding(ex['Btoken'])
 
         if self.args.use_char_emb:
             # (batch, seq_len, max_word_len) -> (batch * seq_len, max_word_len)
