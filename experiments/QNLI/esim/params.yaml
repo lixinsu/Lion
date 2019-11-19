@@ -5,5 +5,4 @@ train_file: data/preprocessed/QNLI/train_spacy.jsonl
 network: esim
 use_cuda: true
 use_elmo: true
-#word_dim: 1024
-reduce_elmo: true
+word_dim: 1024
