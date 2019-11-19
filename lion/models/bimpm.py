@@ -133,6 +133,9 @@ class BIMPM(nn.Module):
         if self.args['use_elmo']:
             A = self.word_embedding(ex['Atoken'])['elmo_representations'][0]
             B = self.word_embedding(ex['Btoken'])['elmo_representations'][0]
+            if self.args['reduce_elmo']:
+                A = self.reduce_elmo(A)
+                B = self.reduce_elmo(B)
         else:
             A = self.word_embedding(ex['Atoken'])
             B = self.word_embedding(ex['Btoken'])

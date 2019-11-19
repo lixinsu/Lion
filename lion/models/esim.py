@@ -113,10 +113,12 @@ class ESIM(nn.Module):
         if self.args['use_elmo']:
             embedded_premises = self.word_embedding(premises)['elmo_representations'][0]
             embedded_hypotheses = self.word_embedding(hypotheses)['elmo_representations'][0]
+            if self.args['reduce_elmo']:
+                embedded_premises = self.reduce_elmo(embedded_premises)
+                embedded_hypotheses = self.reduce_elmo(embedded_hypotheses)
         else:
             embedded_premises = self.word_embedding(premises)
             embedded_hypotheses = self.word_embedding(hypotheses)
-
         if self.dropout:
             embedded_premises = self._rnn_dropout(embedded_premises)
             embedded_hypotheses = self._rnn_dropout(embedded_hypotheses)

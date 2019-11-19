@@ -29,13 +29,13 @@ class MatchingModel:
         if params.embedding_file and state_dict is None:
             self.load_embedding(params.word_dict, params.embedding_file)
         if params.use_elmo:
-            assert params.word_dim == 1024  # elmo's embedding dim
             from allennlp.modules.elmo import Elmo
             options_file = "https://allennlp.s3.amazonaws.com/models/elmo/2x4096_512_2048cnn_2xhighway/" \
                            "elmo_2x4096_512_2048cnn_2xhighway_options.json"
             weight_file = "https://allennlp.s3.amazonaws.com/models/elmo/2x4096_512_2048cnn_2xhighway/" \
                           "elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5"
             self.network.word_embedding = Elmo(options_file, weight_file, 1, dropout=0)
+            self.network.reduce_elmo = torch.nn.Linear(1024, params.word_dim)
         if params.use_cuda:
             self.network.cuda()
 
