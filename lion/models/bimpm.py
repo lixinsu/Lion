@@ -130,18 +130,32 @@ class BIMPM(nn.Module):
     def forward(self, ex):
         # ----- Word Representation Layer -----
         # (batch, seq_len) -> (batch, seq_len, word_dim)
-        A = self.word_embedding(ex['Atoken'])
-        B = self.word_embedding(ex['Btoken'])
-
-
+        if self.args['use_elmo']:
+            elmo_A = ex['Atoken']
+            elmo_B = ex['Btoken']
+            if self.args['use_elmo'] == 'only':
+                A = self.word_embedding(elmo_A)['elmo_representations'][0]
+                B = self.word_embedding(elmo_B)['elmo_representations'][0]
+            elif self.args['use_elmo'] == 'concat':
+                embedded_A = self.word_embedding(ex['Atoken_ids'])
+                embedded_B = self.word_embedding(ex['Btoken_ids'])
+                elmo_embedded_A = self.elmo_embedding(elmo_A)['elmo_representations'][0]
+                elmo_embedded_B = self.elmo_embedding(elmo_B)['elmo_representations'][0]
+                A = torch.cat((embedded_A, elmo_embedded_A), dim=-1)
+                B = torch.cat((embedded_B, elmo_embedded_B), dim=-1)
+            else:
+                raise ValueError('Invalid argument of [use_elmo] :{}'.format(self.args['use_elmo']))
+        else:
+            A = self.word_embedding(ex['Atoken_ids'])
+            B = self.word_embedding(ex['Btoken_ids'])
 
         if self.args.use_char_emb:
             # (batch, seq_len, max_word_len) -> (batch * seq_len, max_word_len)
-            seq_len_A = ex['Achar'].size(1)
-            seq_len_B = ex['Bchar'].size(1)
+            seq_len_A = ex['Achar_ids'].size(1)
+            seq_len_B = ex['Bchar_ids'].size(1)
 
-            char_A = ex['Achar'].view(-1, self.args['max_word_length'])
-            char_B = ex['Bchar'].view(-1, self.args['max_word_length'])
+            char_A = ex['Achar_ids'].view(-1, self.args['max_word_length'])
+            char_B = ex['Bchar_ids'].view(-1, self.args['max_word_length'])
 
             # (batch * seq_len, max_word_len, char_dim)-> (1, batch * seq_len, char_hidden_size)
             _, (char_A, _) = self.char_LSTM(self.char_emb(char_A))

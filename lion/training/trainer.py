@@ -29,6 +29,7 @@ DEFAULTS = {'batch_size': 32,
             'grad_clipping': 10,
             'weight_decay': 0,
             'patience': 5,
+            'use_elmo': None,  # 'only' or 'concat'
             'embedding_file': None,
             'fix_embeddings': True,
             'sorted': True,

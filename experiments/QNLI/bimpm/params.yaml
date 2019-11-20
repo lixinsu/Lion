@@ -4,3 +4,5 @@ train_file: data/preprocessed/QNLI/train_spacy.jsonl
 embedding_file: data/embeddings/glove.840B.300d.txt
 network: bimpm
 use_cuda: true
+use_elmo: concat
+word_dim: 1324
