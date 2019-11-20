@@ -487,6 +487,9 @@ class XLNetTokenizer(Tokenizer):
 
             - requires `SentencePiece <https://github.com/google/sentencepiece>`_
     """
+    max_model_input_sizes = {}
+    vocab_files_names = {}
+
     def __init__(self, vocab_file, max_len=None,
                  do_lower_case=False, remove_space=True, keep_accents=False,
                  bos_token="<s>", eos_token="</s>", unk_token="<unk>", sep_token="<sep>",
@@ -519,15 +522,6 @@ class XLNetTokenizer(Tokenizer):
         self.sp_model = spm.SentencePieceProcessor()
         self.sp_model.Load(vocab_file)
         self.SPIECE_UNDERLINE = u'▁'
-
-        self.sep_token_id = self._convert_token_to_id(self.sep_token)
-        self.cls_token_id = self._convert_token_to_id(self.cls_token)
-
-        # Added tokens
-        self.added_tokens_encoder = {}
-        self.added_tokens_decoder = {}
-
-        self.all_special_ids = {}
 
     @property
     def vocab_size(self):
@@ -568,10 +562,29 @@ class XLNetTokenizer(Tokenizer):
         return outputs
 
     def tokenize(self, text, return_unicode=True, sample=False):
+        split_tokens = []
+        sub_tokens = self._tokenize(text, return_unicode=True, sample=False)
+        sub_token_ids = self.convert_tokens_to_ids(sub_tokens)
+
+        for sub_token in sub_token_ids:
+            split_tokens.append((
+                sub_token,
+                None,
+                None,
+                None,
+                None,
+                None,
+            ))
+        # return split_tokens
+        # Set special option for non-entity tag: '' vs 'O' in spaCy
+        return Tokens(split_tokens, opts={'non_ent': ''})
+
+    def _tokenize(self, text, return_unicode=True, sample=False):
         """ Tokenize a string.
             return_unicode is used only for py2
         """
         text = self.preprocess_text(text)
+
         # note(zhiliny): in some systems, sentencepiece only accepts str for py2
         if six.PY2 and isinstance(text, unicode):
             text = text.encode('utf-8')
@@ -614,20 +627,12 @@ class XLNetTokenizer(Tokenizer):
             return None
 
         if isinstance(tokens, str) or (six.PY2 and isinstance(tokens, unicode)):
-            return self._convert_token_to_id_with_added_voc(tokens)
+            return self._convert_token_to_id(tokens)
 
         ids = []
         for token in tokens:
-            ids.append(self._convert_token_to_id_with_added_voc(token))
+            ids.append(self._convert_token_to_id(token))
         return ids
-
-    def _convert_token_to_id_with_added_voc(self, token):
-        if token is None:
-            return None
-
-        if token in self.added_tokens_encoder:
-            return self.added_tokens_encoder[token]
-        return self._convert_token_to_id(token)
 
     def _convert_token_to_id(self, token):
         """ Converts a token (str/unicode) in an id using the vocab. """
@@ -666,63 +671,6 @@ class XLNetTokenizer(Tokenizer):
         out_string = ''.join(tokens).replace(self.SPIECE_UNDERLINE, ' ').strip()
         return out_string
 
-    def build_inputs_with_special_tokens(self, token_ids_0, token_ids_1=None):
-        """
-        Build model inputs from a sequence or a pair of sequence for sequence classification tasks
-        by concatenating and adding special tokens.
-        A RoBERTa sequence has the following format:
-            single sequence: <s> X </s>
-            pair of sequences: <s> A </s></s> B </s>
-        """
-        sep = [self.sep_token_id]
-        cls = [self.cls_token_id]
-        if token_ids_1 is None:
-            return token_ids_0 + sep + cls
-        return token_ids_0 + sep + token_ids_1 + sep + cls
-
-    def get_special_tokens_mask(self, token_ids_0, token_ids_1=None, already_has_special_tokens=False):
-        """
-        Retrieves sequence ids from a token list that has no special tokens added. This method is called when adding
-        special tokens using the tokenizer ``prepare_for_model`` or ``encode_plus`` methods.
-
-        Args:
-            token_ids_0: list of ids (must not contain special tokens)
-            token_ids_1: Optional list of ids (must not contain special tokens), necessary when fetching sequence ids
-                for sequence pairs
-            already_has_special_tokens: (default False) Set to True if the token list is already formated with
-                special tokens for the model
-
-        Returns:
-            A list of integers in the range [0, 1]: 1 for a special token, 0 for a sequence token.
-        """
-
-        if already_has_special_tokens:
-            if token_ids_1 is not None:
-                raise ValueError("You should not supply a second sequence if the provided sequence of "
-                                 "ids is already formated with special tokens for the model.")
-            return list(map(lambda x: 1 if x in [self.sep_token_id, self.cls_token_id] else 0, token_ids_0))
-
-        if token_ids_1 is not None:
-            return ([0] * len(token_ids_0)) + [1] + ([0] * len(token_ids_1)) + [1, 1]
-        return ([0] * len(token_ids_0)) + [1, 1]
-
-    def create_token_type_ids_from_sequences(self, token_ids_0, token_ids_1=None):
-        """
-        Creates a mask from the two sequences passed to be used in a sequence-pair classification task.
-        A BERT sequence pair mask has the following format:
-        0 0 0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1 1 1 1 2
-        | first sequence    | second sequence     | CLS segment ID
-
-        if token_ids_1 is None, only returns the first portion of the mask (0's).
-        """
-        sep = [self.sep_token_id]
-        cls = [self.cls_token_id]
-        cls_segment_id = [2]
-
-        if token_ids_1 is None:
-            return len(token_ids_0 + sep + cls) * [0]
-        return len(token_ids_0 + sep) * [0] + len(token_ids_1 + sep) * [1] + cls_segment_id
-
     def save_vocabulary(self, save_directory):
         """ Save the sentencepiece vocabulary (copy original file) and special tokens file
             to a directory.
@@ -746,4 +694,4 @@ def get_class(name):
     elif name == 'xlnet':
         return XLNetTokenizer
     else:
-        raise ValueError("Unspport tokenize algorithm")
+        raise ValueError("Unspport tokenize algorithm:{}".format(name))

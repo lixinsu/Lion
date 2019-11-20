@@ -87,7 +87,6 @@ class XLNetConfig(object):
                  n_layer=24,
                  n_head=16,
                  d_inner=4096,
-                 max_position_embeddings=512,
                  ff_activation="gelu",
                  untie_r=True,
                  attn_type="bi",
@@ -114,6 +113,8 @@ class XLNetConfig(object):
         """Constructs XLNetConfig.
         """
         super(XLNetConfig, self).__init__(**kwargs)
+        self.torchscript = kwargs.pop('torchscript', False)
+        self.output_past = kwargs.pop('output_past', True)  # Not used by all models
 
         if isinstance(vocab_size_or_config_json_file, str) or (sys.version_info[0] == 2
                         and isinstance(vocab_size_or_config_json_file, unicode)):
@@ -121,7 +122,6 @@ class XLNetConfig(object):
                 json_config = json.loads(reader.read())
             for key, value in json_config.items():
                 self.__dict__[key] = value
-                # setattr(config, key, value)
         elif isinstance(vocab_size_or_config_json_file, int):
             self.n_token = vocab_size_or_config_json_file
             self.d_model = d_model
@@ -267,7 +267,6 @@ class XLNetPreTrainedModel(nn.Module):
     """ An abstract class to handle weights initialization and
         a simple interface for dowloading and loading pretrained models.
     """
-    config_class = XLNetConfig
     base_model_prefix = "transformer"
 
     def __init__(self, config, *inputs, **kwargs):
@@ -308,10 +307,10 @@ class XLNetPreTrainedModel(nn.Module):
         Download and cache the pre-trained model file if needed.
         """
         # Load config
-        config_file = os.path.join(pretrained_model_path, 'xlnet-base-cased-config.json')
+        config_file = os.path.join(pretrained_model_path, 'xlnet_config.json')
         if not os.path.exists(config_file):
             # Backward compatibility with old naming format
-            config_file = os.path.join(pretrained_model_path, 'xlnet_config.json')
+            config_file = os.path.join(pretrained_model_path, 'config.json')
         config = XLNetConfig.from_json_file(config_file)
         logger.info("Model config {}".format(config))
         # Instantiate model.
@@ -416,7 +415,11 @@ class XLNetModel(XLNetPreTrainedModel):
         self.layer = nn.ModuleList([XLNetLayer(config) for _ in range(config.n_layer)])
         self.dropout = nn.Dropout(config.dropout)
 
-        self.init_weights()
+        self.apply(self.init_xlnet_weights)
+
+    def _resize_token_embeddings(self, new_num_tokens):
+        self.word_embedding = self._get_resized_embeddings(self.word_embedding, new_num_tokens)
+        return self.word_embedding
 
     def get_input_embeddings(self):
         return self.word_embedding
@@ -737,6 +740,15 @@ class XLNetLMHeadModel(XLNetPreTrainedModel):
         self.lm_loss = nn.Linear(config.d_model, config.n_token, bias=True)
 
         self.init_weights()
+        self.tie_weights()
+
+    def tie_weights(self):
+        """ Make sure we are sharing the embeddings
+        """
+        if self.config.torchscript:
+            self.lm_loss.weight = nn.Parameter(self.transformer.word_embedding.weight.clone())
+        else:
+            self.lm_loss.weight = self.transformer.word_embedding.weight
 
     def get_output_embeddings(self):
         return self.lm_loss
@@ -803,18 +815,29 @@ class XLNetForSequenceClassification(XLNetPreTrainedModel):
         loss, logits = outputs[:2]
 
     """
-    def __init__(self, config):
+    def __init__(self, config, num_labels):
         super(XLNetForSequenceClassification, self).__init__(config)
-        self.num_labels = config.num_labels
-
+        self.num_labels = num_labels
         self.transformer = XLNetModel(config)
         self.sequence_summary = SequenceSummary(config)
-        self.logits_proj = nn.Linear(config.d_model, config.num_labels)
+        self.logits_proj = nn.Linear(config.d_model, self.num_labels)
 
-        self.init_weights()
+        self.apply(self.init_xlnet_weights)
 
-    def forward(self, input_ids=None, attention_mask=None, mems=None, perm_mask=None, target_mapping=None,
-                token_type_ids=None, input_mask=None, head_mask=None, inputs_embeds=None, labels=None):
+    def forward(self, ex, mems=None, perm_mask=None, target_mapping=None, input_mask=None, head_mask=None,
+                inputs_embeds=None, labels=None):
+        #  input_ids=None, attention_mask=None, mems=None, perm_mask=None, target_mapping=None,
+        #  token_type_ids=None, input_mask=None, head_mask=None, inputs_embeds=None, labels=None
+        A = ex['Atoken_ids']
+        B = ex['Btoken_ids']
+        Asegment = ex['Asegment']
+        Bsegment = ex['Bsegment']
+        Amask = ex['Amask']
+        Bmask = ex['Bmask']
+        input_ids = torch.cat([A, B], dim=-1)
+        token_type_ids = torch.cat([Asegment, Bsegment], dim=-1)
+        attention_mask = torch.cat([Amask, Bmask], dim=-1)
+
         transformer_outputs = self.transformer(input_ids,
                                                attention_mask=attention_mask,
                                                mems=mems,
@@ -828,20 +851,20 @@ class XLNetForSequenceClassification(XLNetPreTrainedModel):
 
         output = self.sequence_summary(output)
         logits = self.logits_proj(output)
+        # outputs = (logits,) + transformer_outputs[1:]  # Keep mems, hidden states, attentions if there are in it
 
-        outputs = (logits,) + transformer_outputs[1:]  # Keep mems, hidden states, attentions if there are in it
+        # if labels is not None:
+        #     if self.num_labels == 1:
+        #         #  We are doing regression
+        #         loss_fct = MSELoss()
+        #         loss = loss_fct(logits.view(-1), labels.view(-1))
+        #     else:
+        #         loss_fct = CrossEntropyLoss()
+        #         loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
+        #     outputs = (loss,) + outputs
 
-        if labels is not None:
-            if self.num_labels == 1:
-                #  We are doing regression
-                loss_fct = MSELoss()
-                loss = loss_fct(logits.view(-1), labels.view(-1))
-            else:
-                loss_fct = CrossEntropyLoss()
-                loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
-            outputs = (loss,) + outputs
-
-        return outputs  # return (loss), logits, (mems), (hidden states), (attentions)
+        # return outputs  # return (loss), logits, (mems), (hidden states), (attentions)
+        return logits
 
 
 class SequenceSummary(nn.Module):

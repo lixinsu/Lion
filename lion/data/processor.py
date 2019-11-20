@@ -48,6 +48,12 @@ def process_datum(datum, tokenizer, label2index):
         # Adapt to bert input format
         rv['Atokens'] = ["[CLS]"] + rv['Atokens'] + ["[SEP]"]
         rv['Btokens'] = rv['Btokens'] + ["[SEP]"]
+    if tokenizer.__class__.__name__ == 'XLNetTokenizer':
+        # Adapt to xlnet input format
+        # special_symbols = {SEG_ID_A: 0, SEG_ID_B: 1, SEG_ID_CLS: 2, "<cls>": 3, "<sep>": 4,
+        # SEG_ID_SEP: 3, SEG_ID_PAD: 4}
+        rv['Atokens'] = rv['Atokens'] + [4]
+        rv['Btokens'] = rv['Btokens'] + [4] + [3]
     return rv
 
 
@@ -56,6 +62,8 @@ def process_dataset(in_dir, out_dir, splits=['train', 'dev', 'test'], tokenizer_
     def jsondump(data, filename):
         json.dump(data, open(osp.join(out_dir, filename), 'w'), indent=2)
     if tokenizer_name == 'bert':
+        tokenizer = get_class(tokenizer_name)(vocab_file)
+    elif tokenizer_name == 'xlnet':
         tokenizer = get_class(tokenizer_name)(vocab_file)
     else:
         tokenizer = get_class(tokenizer_name)()
@@ -76,11 +84,12 @@ def process_dataset(in_dir, out_dir, splits=['train', 'dev', 'test'], tokenizer_
                 raise ValueError('Bae line {}'.format(datum))
         #with Pool(30) as p:
         #    processed = p.map(tokenizer.tokenize, dataset)
-        char_dict, word_dict, pos_dict, ner_dict = gather_dict(processed)
-        jsondump(char_dict, 'char.json')
-        jsondump(word_dict, 'word.json')
-        jsondump(pos_dict, 'pos.json')
-        jsondump(ner_dict, 'ner.json')
+        if tokenizer_name != 'xlnet':
+            char_dict, word_dict, pos_dict, ner_dict = gather_dict(processed)
+            jsondump(char_dict, 'char.json')
+            jsondump(word_dict, 'word.json')
+            jsondump(pos_dict, 'pos.json')
+            jsondump(ner_dict, 'ner.json')
         out_file = open(osp.join(out_dir, 'train_{}.jsonl'.format(tokenizer_name)), 'w')
         for datum in processed:
             out_file.write('{}\n'.format(json.dumps(datum)))

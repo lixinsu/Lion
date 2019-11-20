@@ -33,7 +33,7 @@ class SortedBatchSampler(data.Sampler):
         return len(self.lengths)
 
 
-def batchify_factory(max_A_len=None, max_B_len=None, elmo_batch=None):
+def batchify_factory(max_A_len=None, max_B_len=None, elmo_batch=None, network=None):
     def batchify(batch):
         key_list = ['Atoken_ids', 'Apos_ids', 'Aner_ids', 'Achar_ids',
                     'Btoken_ids', 'Bpos_ids', 'Bner_ids', 'Bchar_ids']
@@ -60,13 +60,13 @@ def batchify_factory(max_A_len=None, max_B_len=None, elmo_batch=None):
                     padded_data = torch.LongTensor(len(batch_data), max_len).fill_(0)
             else:
                 padded_data = torch.LongTensor(len(batch_data), max_len, 16).fill_(0)
+
             if 'A' in k and 'Amask' not in rv and 'Asegment' not in rv:
+                # The mask has 0 for real tokens and 1 for padding tokens
                 Amask = torch.LongTensor(len(batch_data), max_len).fill_(0)
-                # Amask = torch.ByteTensor(len(batch_data), max_len).fill_(1)
                 Asegment = torch.LongTensor(len(batch_data), max_len).fill_(0)
             if 'B' in k and 'Bmask' not in rv and 'Bsegment' not in rv:
                 Bmask = torch.LongTensor(len(batch_data), max_len).fill_(0)
-                # Bmask = torch.ByteTensor(len(batch_data), max_len).fill_(1)
                 Bsegment = torch.LongTensor(len(batch_data), max_len).fill_(1)
             for i, d in enumerate(batch_data):
                 if 'char' not in k:
@@ -75,10 +75,11 @@ def batchify_factory(max_A_len=None, max_B_len=None, elmo_batch=None):
                     padded_data[i, :d.size(0), :].copy_(d[:max_len, :])
                 if Amask is not None:
                     Amask[i, :d.size(0)].fill_(1)
-                    # Amask[i, :d.size(0)].fill_(0)
                 if Bmask is not None:
                     Bmask[i, :d.size(0)].fill_(1)
-                    # Bmask[i, :d.size(0)].fill_(0)
+                if network == 'xlnet' and Bsegment is not None:
+                    # for <cls>, segment id is 2
+                    Bsegment[i, d.size(0)-1].fill_(2)
             if 'Amask' not in rv and Amask is not None:
                 rv['Amask'] = Amask
                 rv['Asegment'] = Asegment
@@ -106,7 +107,7 @@ def prepare_loader(dataset, args, split='train'):
         batch_size=args.batch_size,
         sampler=sampler,
         num_workers=args.num_workers,
-        collate_fn=batchify_factory(args.max_A_len, args.max_B_len, batch_to_ids),
+        collate_fn=batchify_factory(args.max_A_len, args.max_B_len, batch_to_ids, args.network),
         pin_memory=True,
     )
     return loader

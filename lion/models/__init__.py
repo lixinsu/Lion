@@ -6,6 +6,7 @@ from .test_model_1 import TestModel_1
 from .bimpm import BIMPM
 from .esim import ESIM
 from .bert import BertForSequenceClassification
+from .xlnet import XLNetForSequenceClassification
 
 
 def get_model_class(name):
@@ -17,4 +18,6 @@ def get_model_class(name):
         return ESIM
     if name == 'bert':
         return BertForSequenceClassification
+    if name == 'xlnet':
+        return XLNetForSequenceClassification
     raise RuntimeError('Invalid model %s' % name)

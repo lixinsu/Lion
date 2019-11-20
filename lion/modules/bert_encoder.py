@@ -49,7 +49,7 @@ class BertAttention(nn.Module):
         self.output = SublayerOutput(dim_model, dropout_prob, eps)
 
     def forward(self, input_tensor, attention_mask):
-        self_output = self.self(v1=input_tensor, v1_mask=attention_mask)
+        self_output = self.self(q=input_tensor, q_mask=attention_mask)
         attention_output = self.output(self_output, input_tensor)
         return attention_output
 

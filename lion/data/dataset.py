@@ -20,7 +20,7 @@ class LionDataset(Dataset):
         self.char_dict = args.char_dict
         self.pos_dict = args.pos_dict
         self.ner_dict = args.ner_dict
-        self.use_elmo = args.use_elmo
+        self.args = args
 
     def _load_json(self, data_file):
         data = [json.loads(line) for line in open(data_file)]
@@ -39,6 +39,15 @@ class LionDataset(Dataset):
         return self.examples[index]
 
     def vectorize(self, ex):
+        def make_char(char_dict, token, word_length=16):
+            if len(token) > 16:
+                return [char_dict[t_] for t_ in token[:8]] + [char_dict[t_] for t_ in token[-8:]]
+            else:
+                rv = [0] * 16
+                for i in range(len(token)):
+                    rv[i] = char_dict[token[i]]
+                return rv
+
         # Index words
         word_dict = self.word_dict
         char_dict = self.char_dict
@@ -53,29 +62,28 @@ class LionDataset(Dataset):
             ex['Bpos'] = ex['Bpos'][0:self.length_limit]
             ex['Bner'] = ex['Bner'][0:self.length_limit]
         oriAtoken, oriBtoken = None, None
-        if self.use_elmo:
+        if self.args.use_elmo:
             # Not index words
             oriAtoken = ex['Atokens']
             oriBtoken = ex['Btokens']
-        Atoken = torch.LongTensor([word_dict[w] for w in ex['Atokens']])
-        Btoken = torch.LongTensor([word_dict[w] for w in ex['Btokens']])
+        if self.args.network == 'xlnet':
+            Atoken = torch.LongTensor(ex['Atokens'])
+            Btoken = torch.LongTensor(ex['Btokens'])
+            Achar = torch.zeros(len(ex['Atokens']), 16)
+            Bchar = torch.zeros(len(ex['Btokens']), 16)
+        else:
+            Atoken = torch.LongTensor([word_dict[w] for w in ex['Atokens']])
+            Btoken = torch.LongTensor([word_dict[w] for w in ex['Btokens']])
+            Achar = torch.LongTensor([make_char(char_dict, w) for w in ex['Atokens']])
+            Bchar = torch.LongTensor([make_char(char_dict, w) for w in ex['Btokens']])
+
         Apos = torch.LongTensor([pos_dict[w] if w is not None else 0 for w in ex['Apos']])
         Bpos = torch.LongTensor([pos_dict[w] if w is not None else 0 for w in ex['Bpos']])
 
         Aner = torch.LongTensor([ner_dict[w] if w is not None else 0 for w in ex['Aner']])
         Bner = torch.LongTensor([ner_dict[w] if w is not None else 0 for w in ex['Bner']])
 
-        def make_char(char_dict, token, word_length=16):
-            if len(token) > 16:
-                return [char_dict[t_] for t_ in token[:8]] + [char_dict[t_] for t_ in token[-8:]]
-            else:
-                rv = [0] * 16
-                for i in range(len(token)):
-                    rv[i] = char_dict[token[i]]
-                return rv
 
-        Achar = torch.LongTensor([make_char(char_dict, w) for w in ex['Atokens']])
-        Bchar = torch.LongTensor([make_char(char_dict, w) for w in ex['Btokens']])
 
         rv = {'id': ex['id'],
               'Atoken': oriAtoken,
