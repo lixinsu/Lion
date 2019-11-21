@@ -2,30 +2,27 @@
 # coding: utf-8
 
 import json
-import os.path as osp
 
 import torch
 from torch.utils.data.dataset import Dataset
 from loguru import logger
 
-from lion.data.vocab import Dictionary
-
 
 class LionDataset(Dataset):
 
     def __init__(self, data_file, args):
-        self.examples = self._load_json(data_file)
-        self.length_limit = args.length_limit
-        self.word_dict = args.word_dict
-        self.char_dict = args.char_dict
+        self.args = args
         self.pos_dict = args.pos_dict
         self.ner_dict = args.ner_dict
-        self.args = args
+        self.word_dict = args.word_dict
+        self.char_dict = args.char_dict
+        self.length_limit = args.length_limit
+        self.examples = self._load_json(data_file)
 
     def _load_json(self, data_file):
         data = [json.loads(line) for line in open(data_file)]
         ori = len(data)
-        data = [d for d in data if (len(d['Atokens']) < 512 and len(d['Btokens']) < 512)]
+        data = [d for d in data if len(d['Atokens'])+len(d['Btokens']) <= self.args.length_limit]
         logger.info('{} filter {} abnormal instance'.format(data_file, ori - len(data)))
         return data
 
@@ -83,8 +80,6 @@ class LionDataset(Dataset):
         Aner = torch.LongTensor([ner_dict[w] if w is not None else 0 for w in ex['Aner']])
         Bner = torch.LongTensor([ner_dict[w] if w is not None else 0 for w in ex['Bner']])
 
-
-
         rv = {'id': ex['id'],
               'Atoken': oriAtoken,
               'Btoken': oriBtoken,
@@ -106,4 +101,3 @@ class LionDataset(Dataset):
 
 if __name__ == '__main__':
     dataset = LionDataset('data/preprocessed/QQPdebug/train_spacy.jsonl', 'data/preprocessed/QQPdebug/')
-

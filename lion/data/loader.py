@@ -62,7 +62,8 @@ def batchify_factory(max_A_len=None, max_B_len=None, elmo_batch=None, network=No
                 padded_data = torch.LongTensor(len(batch_data), max_len, 16).fill_(0)
 
             if 'A' in k and 'Amask' not in rv and 'Asegment' not in rv:
-                # The mask has 0 for real tokens and 1 for padding tokens
+                # The mask has 1 for real tokens and 0 for padding tokens, this is how bert does!
+                # So tranditional model like esim need to inverse it.
                 Amask = torch.LongTensor(len(batch_data), max_len).fill_(0)
                 Asegment = torch.LongTensor(len(batch_data), max_len).fill_(0)
             if 'B' in k and 'Bmask' not in rv and 'Bsegment' not in rv:
