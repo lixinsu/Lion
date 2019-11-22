@@ -1,11 +1,11 @@
 # coding=utf-8
-""" PyTorch XLNet model.
+""" PyTorch XLNet model. Reference to 'https://github.com/zihangdai/xlnet/'
+ and 'https://github.com/huggingface/transformers'
 """
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
 import logging
-import math
 import os
 import copy
 import sys
@@ -34,10 +34,25 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-XLNET_PRETRAINED_MODEL_ARCHIVE_MAP = {
-    'xlnet-base-cased': "https://s3.amazonaws.com/models.huggingface.co/bert/xlnet-base-cased-pytorch_model.bin",
-    'xlnet-large-cased': "https://s3.amazonaws.com/models.huggingface.co/bert/xlnet-large-cased-pytorch_model.bin",
-}
+'''
+Download link:
+
+Model:
+'xlnet-base-cased': "https://s3.amazonaws.com/models.huggingface.co/bert/xlnet-base-cased-pytorch_model.bin",
+'xlnet-large-cased': "https://s3.amazonaws.com/models.huggingface.co/bert/xlnet-large-cased-pytorch_model.bin",
+
+Config:
+'xlnet-base-cased': "https://s3.amazonaws.com/models.huggingface.co/bert/xlnet-base-cased-config.json",
+'xlnet-large-cased': "https://s3.amazonaws.com/models.huggingface.co/bert/xlnet-large-cased-config.json",
+
+Vocab:
+'xlnet-base-cased': "https://s3.amazonaws.com/models.huggingface.co/bert/xlnet-base-cased-spiece.model",
+'xlnet-large-cased': "https://s3.amazonaws.com/models.huggingface.co/bert/xlnet-large-cased-spiece.model"
+
+Note:
+For compatibility with Bert, please change the model name to `pytorch_model.bin`, config file name to `config.json`
+or `xlnet_config.json` and vocab name to `spiece.model`.
+'''
 
 ACT2FN = {"gelu": gelu, "relu": torch.nn.functional.relu, "swish": swish}
 XLNetLayerNorm = nn.LayerNorm
@@ -79,7 +94,6 @@ class XLNetConfig(object):
         clamp_len: int, clamp all relative distances larger than clamp_len.
             -1 means no clamping.
         same_length: bool, whether to use the same attention length for each token.
-        finetuning_task: name of the glue task on which the model was fine-tuned if any
     """
     def __init__(self,
                  vocab_size_or_config_json_file=32000,
@@ -101,14 +115,11 @@ class XLNetConfig(object):
                  clamp_len=-1,
                  same_length=False,
 
-                 finetuning_task=None,
                  num_labels=2,
                  summary_type='last',
                  summary_use_proj=True,
                  summary_activation='tanh',
                  summary_last_dropout=0.1,
-                 start_n_top=5,
-                 end_n_top=5,
                  **kwargs):
         """Constructs XLNetConfig.
         """
@@ -144,14 +155,11 @@ class XLNetConfig(object):
             self.clamp_len = clamp_len
             self.same_length = same_length
 
-            self.finetuning_task = finetuning_task
             self.num_labels = num_labels
             self.summary_type = summary_type
             self.summary_use_proj = summary_use_proj
             self.summary_activation = summary_activation
             self.summary_last_dropout = summary_last_dropout
-            self.start_n_top = start_n_top
-            self.end_n_top = end_n_top
         else:
             raise ValueError("First argument must be either a vocabulary size (int)"
                              " or the path to a pretrained model config file (str)")
@@ -690,95 +698,6 @@ class XLNetModel(XLNetPreTrainedModel):
         return outputs  # outputs, (new_mems), (hidden_states), (attentions)
 
 
-class XLNetLMHeadModel(XLNetPreTrainedModel):
-    r"""
-        **labels**: (`optional`) ``torch.LongTensor`` of shape ``(batch_size, sequence_length)``:
-            Labels for language modeling.
-            Note that the labels **are shifted** inside the model, i.e. you can set ``lm_labels = input_ids``
-            Indices are selected in ``[-1, 0, ..., config.vocab_size]``
-            All labels set to ``-1`` are ignored (masked), the loss is only
-            computed for labels in ``[0, ..., config.vocab_size]``
-
-    Outputs: `Tuple` comprising various elements depending on the configuration (config) and inputs:
-        **loss**: (`optional`, returned when ``labels`` is provided) ``torch.FloatTensor`` of shape ``(1,)``:
-            Language modeling loss.
-        **prediction_scores**: ``torch.FloatTensor`` of shape ``(batch_size, sequence_length, config.vocab_size)``
-            Prediction scores of the language modeling head (scores for each vocabulary token before SoftMax).
-        **mems**: (`optional`, returned when ``config.mem_len > 0``)
-            list of ``torch.FloatTensor`` (one for each layer):
-            that contains pre-computed hidden-states (key and values in the attention blocks) as computed by the model
-            if config.mem_len > 0 else tuple of None. Can be used to speed up sequential decoding and attend to longer context.
-            See details in the docstring of the `mems` input above.
-        **hidden_states**: (`optional`, returned when ``config.output_hidden_states=True``)
-            list of ``torch.FloatTensor`` (one for the output of each layer + the output of the embeddings)
-            of shape ``(batch_size, sequence_length, hidden_size)``:
-            Hidden-states of the model at the output of each layer plus the initial embedding outputs.
-        **attentions**: (`optional`, returned when ``config.output_attentions=True``)
-            list of ``torch.FloatTensor`` (one for each layer) of shape ``(batch_size, num_heads, sequence_length, sequence_length)``:
-            Attentions weights after the attention softmax, used to compute the weighted average in the self-attention heads.
-
-    Examples::
-
-        tokenizer = XLNetTokenizer.from_pretrained('xlnet-large-cased')
-        model = XLNetLMHeadModel.from_pretrained('xlnet-large-cased')
-        # We show how to setup inputs to predict a next token using a bi-directional context.
-        input_ids = torch.tensor(tokenizer.encode("Hello, my dog is very <mask>")).unsqueeze(0)  # We will predict the masked token
-        perm_mask = torch.zeros((1, input_ids.shape[1], input_ids.shape[1]), dtype=torch.float)
-        perm_mask[:, :, -1] = 1.0  # Previous tokens don't see last token
-        target_mapping = torch.zeros((1, 1, input_ids.shape[1]), dtype=torch.float)  # Shape [1, 1, seq_length] => let's predict one token
-        target_mapping[0, 0, -1] = 1.0  # Our first (and only) prediction will be the last token of the sequence (the masked token)
-        outputs = model(input_ids, perm_mask=perm_mask, target_mapping=target_mapping)
-        next_token_logits = outputs[0]  # Output has shape [target_mapping.size(0), target_mapping.size(1), config.vocab_size]
-
-    """
-    def __init__(self, config):
-        super(XLNetLMHeadModel, self).__init__(config)
-        self.attn_type = config.attn_type
-        self.same_length = config.same_length
-
-        self.transformer = XLNetModel(config)
-        self.lm_loss = nn.Linear(config.d_model, config.n_token, bias=True)
-
-        self.init_weights()
-        self.tie_weights()
-
-    def tie_weights(self):
-        """ Make sure we are sharing the embeddings
-        """
-        if self.config.torchscript:
-            self.lm_loss.weight = nn.Parameter(self.transformer.word_embedding.weight.clone())
-        else:
-            self.lm_loss.weight = self.transformer.word_embedding.weight
-
-    def get_output_embeddings(self):
-        return self.lm_loss
-
-    def forward(self, input_ids=None, attention_mask=None, mems=None, perm_mask=None, target_mapping=None,
-                token_type_ids=None, input_mask=None, head_mask=None, inputs_embeds=None, labels=None):
-        transformer_outputs = self.transformer(input_ids,
-                                               attention_mask=attention_mask,
-                                               mems=mems,
-                                               perm_mask=perm_mask,
-                                               target_mapping=target_mapping,
-                                               token_type_ids=token_type_ids,
-                                               input_mask=input_mask,
-                                               head_mask=head_mask,
-                                               inputs_embeds=inputs_embeds)
-
-        logits = self.lm_loss(transformer_outputs[0])
-
-        outputs = (logits,) + transformer_outputs[1:]  # Keep mems, hidden states, attentions if there are in it
-
-        if labels is not None:
-            # Flatten the tokens
-            loss_fct = CrossEntropyLoss(ignore_index=-1)
-            loss = loss_fct(logits.view(-1, logits.size(-1)),
-                            labels.view(-1))
-            outputs = (loss,) + outputs
-
-        return outputs  # return (loss), logits, (mems), (hidden states), (attentions)
-
-
 class XLNetForSequenceClassification(XLNetPreTrainedModel):
     r"""
         **labels**: (`optional`) ``torch.LongTensor`` of shape ``(batch_size,)``:
@@ -851,19 +770,7 @@ class XLNetForSequenceClassification(XLNetPreTrainedModel):
 
         output = self.sequence_summary(output)
         logits = self.logits_proj(output)
-        # outputs = (logits,) + transformer_outputs[1:]  # Keep mems, hidden states, attentions if there are in it
 
-        # if labels is not None:
-        #     if self.num_labels == 1:
-        #         #  We are doing regression
-        #         loss_fct = MSELoss()
-        #         loss = loss_fct(logits.view(-1), labels.view(-1))
-        #     else:
-        #         loss_fct = CrossEntropyLoss()
-        #         loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
-        #     outputs = (loss,) + outputs
-
-        # return outputs  # return (loss), logits, (mems), (hidden states), (attentions)
         return logits
 
 

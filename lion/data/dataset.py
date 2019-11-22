@@ -23,7 +23,7 @@ class LionDataset(Dataset):
         data = [json.loads(line) for line in open(data_file)]
         ori = len(data)
         data = [d for d in data if len(d['Atokens'])+len(d['Btokens']) <= self.args.length_limit]
-        logger.info('{} filter {} abnormal instance'.format(data_file, ori - len(data)))
+        logger.info('{} filter {} abnormal instance'.format(data_file, ori-len(data)))
         return data
 
     def __len__(self):
@@ -37,10 +37,10 @@ class LionDataset(Dataset):
 
     def vectorize(self, ex):
         def make_char(char_dict, token, word_length=16):
-            if len(token) > 16:
-                return [char_dict[t_] for t_ in token[:8]] + [char_dict[t_] for t_ in token[-8:]]
+            if len(token) > word_length:
+                return [char_dict[t_] for t_ in token[:word_length/2]] + [char_dict[t_] for t_ in token[-word_length/2:]]
             else:
-                rv = [0] * 16
+                rv = [0] * word_length
                 for i in range(len(token)):
                     rv[i] = char_dict[token[i]]
                 return rv

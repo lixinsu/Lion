@@ -4,11 +4,12 @@ Text pair classification toolkit.
 ## Usage
 
  ### Preprocessing:
- 1. Transform the dataset to the standard formation . We currently support snli and quoraqp. Please write your own transformation scripts for other dataset.  
+ 1. Transform the dataset to the standard formation . We currently support snli, qnli and quoraqp. Please write your own transformation scripts for other dataset.  
  `python  lion/data/dataset_utils/quoraqp.py convert-dataset  --indir INDIR --outdir OUTDIR`
  
  2. Preprocess the dataset.  
- ` python lion/data/processor.py process-dataset --in-dir IN_DIR --out-dir OUT_DIR --tokenizer-name [spacy/bert] --vocab-file FILE_PATH`
+ ` python lion/data/processor.py process-dataset --in_dir IN_DIR --out_dir OUT_DIR --splits ['train'|'dev'|'test'] 
+ --tokenizer_name [spacy/bert/xlnet] --vocab_file FILE_PATH --max_length SEQUENCE_LENGTH`
 
  ### Training:  
 1. Create a directory for saving model and put the config file in it . 
@@ -43,6 +44,7 @@ dropout:
 
 ## Models
 
+Performance on the dev set
 <table>
   <tr>
     <th width=25%, bgcolor=#999999 >Model</th> 
@@ -67,6 +69,12 @@ dropout:
     <td align="center", bgcolor=#eeeeee> 91.3</td>
     <td align="center", bgcolor=#eeeeee> 91.1 </td>
     <td align="center", bgcolor=#eeeeee> 91.7 </td>
+  </tr>
+  <tr>
+    <td align="center", bgcolor=#eeeeee> XLNET </td>
+    <td align="center", bgcolor=#eeeeee> 90.9   </td>
+    <td align="center", bgcolor=#eeeeee> 91.6   </td>
+    <td align="center", bgcolor=#eeeeee> 91.7  </td>
   </tr>
 </table>
 

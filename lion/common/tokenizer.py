@@ -490,15 +490,9 @@ class XLNetTokenizer(Tokenizer):
     max_model_input_sizes = {}
     vocab_files_names = {}
 
-    def __init__(self, vocab_file, max_len=None,
-                 do_lower_case=False, remove_space=True, keep_accents=False,
-                 bos_token="<s>", eos_token="</s>", unk_token="<unk>", sep_token="<sep>",
-                 pad_token="<pad>", cls_token="<cls>", mask_token="<mask>",
-                 additional_special_tokens=["<eop>", "<eod>"], **kwargs):
+    def __init__(self, vocab_file, max_len=None, do_lower_case=False, remove_space=True, keep_accents=False, **kwargs):
         super(XLNetTokenizer, self).__init__()
         self.max_len = max_len if max_len is not None else int(1e12)
-        self.max_len_single_sentence = self.max_len - 2  # take into account special tokens
-        self.max_len_sentences_pair = self.max_len - 3  # take into account special tokens
 
         try:
             import sentencepiece as spm
@@ -506,14 +500,7 @@ class XLNetTokenizer(Tokenizer):
             logger.warning(
                 "You need to install SentencePiece to use XLNetTokenizer: https://github.com/google/sentencepiece"
                 "pip install sentencepiece")
-        self.bos_token = bos_token
-        self.eos_token = eos_token
-        self.unk_token = unk_token
-        self.sep_token = sep_token
-        self.pad_token = pad_token
-        self.cls_token = cls_token
-        self.mask_token = mask_token
-        self.additional_special_tokens = additional_special_tokens
+
         self.do_lower_case = do_lower_case
         self.remove_space = remove_space
         self.keep_accents = keep_accents
@@ -632,6 +619,12 @@ class XLNetTokenizer(Tokenizer):
         ids = []
         for token in tokens:
             ids.append(self._convert_token_to_id(token))
+        if len(ids) > self.max_len:
+            logger.warning(
+                "Token indices sequence length is longer than the specified maximum "
+                " sequence length for this XLNET model ({} > {}). Running this"
+                " sequence through BERT will result in indexing errors".format(len(ids), self.max_len)
+            )
         return ids
 
     def _convert_token_to_id(self, token):

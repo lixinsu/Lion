@@ -49,9 +49,10 @@ def batchify_factory(max_A_len=None, max_B_len=None, elmo_batch=None, network=No
             batch_data = [ex[k] for ex in batch]
             if k.endswith('token') and elmo_batch:
                 batch_data = elmo_batch(batch_data)
-            unified_max_len = max_A_len if 'A' in k else max_B_len      # For CNN model with fixed length on whole dataset
+            unified_max_len = max_A_len if 'A' in k else max_B_len  # For CNN model with fixed length on whole dataset
             current_max_len = max([d.size(0) for d in batch_data])
             max_len = unified_max_len or current_max_len
+
             if 'char' not in k:
                 if k.endswith('token') and elmo_batch:
                     # 50 is the character dim of elmo
@@ -69,6 +70,11 @@ def batchify_factory(max_A_len=None, max_B_len=None, elmo_batch=None, network=No
             if 'B' in k and 'Bmask' not in rv and 'Bsegment' not in rv:
                 Bmask = torch.LongTensor(len(batch_data), max_len).fill_(0)
                 Bsegment = torch.LongTensor(len(batch_data), max_len).fill_(1)
+                if network == 'xlnet' and Bsegment is not None:
+                    # for <cls>, segment id is 2
+                    for i, d in enumerate(batch_data):
+                        Bsegment[i, d.size(0)-1].fill_(2)
+
             for i, d in enumerate(batch_data):
                 if 'char' not in k:
                     padded_data[i, :d.size(0)].copy_(d[:max_len])
@@ -78,9 +84,7 @@ def batchify_factory(max_A_len=None, max_B_len=None, elmo_batch=None, network=No
                     Amask[i, :d.size(0)].fill_(1)
                 if Bmask is not None:
                     Bmask[i, :d.size(0)].fill_(1)
-                if network == 'xlnet' and Bsegment is not None:
-                    # for <cls>, segment id is 2
-                    Bsegment[i, d.size(0)-1].fill_(2)
+
             if 'Amask' not in rv and Amask is not None:
                 rv['Amask'] = Amask
                 rv['Asegment'] = Asegment
