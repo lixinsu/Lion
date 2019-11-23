@@ -54,13 +54,13 @@ def process_datum(datum, tokenizer, label2index):
 def process_dataset(in_dir, out_dir, splits=['train', 'dev', 'test'], tokenizer_name='spacy', vocab_file=None):
 
     def jsondump(data, filename):
-        json.dump(data, open(osp.join(out_dir, filename), 'w'), indent=2)
+        json.dump(data, open(osp.join(out_dir, filename), 'w'), indent=2, ensure_ascii=False)
     if tokenizer_name == 'bert':
         tokenizer = get_class(tokenizer_name)(vocab_file)
     else:
         tokenizer = get_class(tokenizer_name)()
     if not osp.exists(out_dir):
-        os.makedirs(out_dir)
+        os.makedirs(out_dir, exist_ok=True)
 
     if 'train' in splits:
         split = 'train.jsonl'
@@ -72,7 +72,8 @@ def process_dataset(in_dir, out_dir, splits=['train', 'dev', 'test'], tokenizer_
         for datum in tqdm(dataset):
             try:
                 processed.append(process_datum(datum, tokenizer, label2index))
-            except:
+            except Exception as e:
+                print(e)
                 raise ValueError('Bae line {}'.format(datum))
         #with Pool(30) as p:
         #    processed = p.map(tokenizer.tokenize, dataset)
@@ -83,7 +84,7 @@ def process_dataset(in_dir, out_dir, splits=['train', 'dev', 'test'], tokenizer_
         jsondump(ner_dict, 'ner.json')
         out_file = open(osp.join(out_dir, 'train_{}.jsonl'.format(tokenizer_name)), 'w')
         for datum in processed:
-            out_file.write('{}\n'.format(json.dumps(datum)))
+            out_file.write('{}\n'.format(json.dumps(datum, ensure_ascii=False)))
     if 'dev' in splits:
         split = 'dev.jsonl'
         filename = osp.join(in_dir, split)
@@ -94,7 +95,7 @@ def process_dataset(in_dir, out_dir, splits=['train', 'dev', 'test'], tokenizer_
             try:
                 processed.append(process_datum(datum, tokenizer, label2index))
             except:
-                raise ValueError('Bae line {}'.format(datum))
+                raise ValueError('Bae line {}'.format(datum, ensure_ascii=False))
         for datum in processed:
             out_file.write('{}\n'.format(json.dumps(datum)))
     if 'test' in splits:
@@ -109,7 +110,7 @@ def process_dataset(in_dir, out_dir, splits=['train', 'dev', 'test'], tokenizer_
             except:
                 raise ValueError('Bae line {}'.format(datum))
         for datum in processed:
-            out_file.write('{}\n'.format(json.dumps(datum)))
+            out_file.write('{}\n'.format(json.dumps(datum, ensure_ascii=False)))
 
 
 if __name__ == '__main__':
