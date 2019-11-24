@@ -26,7 +26,7 @@ class LionDataset(Dataset):
         data = [json.loads(line) for line in open(data_file)]
         ori = len(data)
         data = [d for d in data if (len(d['Atokens']) < 512 and len(d['Btokens']) < 512)]
-        logger.info('{} filter {} abnormal instance'.format(data_file, ori - len(data)))
+        logger.info('{} filter {} abnormal instances which are longer than 512 tokens.'.format(data_file, ori - len(data)))
         return data
 
     def __len__(self):
