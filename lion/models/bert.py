@@ -395,8 +395,8 @@ class BertForSequenceClassification(BertPreTrainedModel):
         self.apply(self.init_bert_weights)
 
     def forward(self, ex):
-        A = ex['Atoken']
-        B = ex['Btoken']
+        A = ex['Atoken_ids']
+        B = ex['Btoken_ids']
         Asegment = ex['Asegment']
         Bsegment = ex['Bsegment']
         Amask = ex['Amask']
