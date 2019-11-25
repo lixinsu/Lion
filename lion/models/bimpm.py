@@ -5,8 +5,7 @@ import torch
 import torch.nn as nn
 
 from lion.modules.layer_match import FullLayerMatch, MaxPoolingLayerMatch
-from lion.modules.attention import BasicAttention
-from lion.modules.utils import div_with_small_value
+from lion.modules.attention import CosineAttention
 
 
 class BIMPM(nn.Module):
@@ -14,7 +13,7 @@ class BIMPM(nn.Module):
     Implementation of the BIMPM model presented in the paper "Bilateral Multi-Perspective
     Matching for Natural Language Sentences" by Wang et al.
     """
-    MODEL_DEFAULTS = {'max_word_length': 10,
+    MODEL_DEFAULTS = {'max_word_length': 16,
                         'dropout': 0.1,
                         'num_perspective': 20,
                         'use_char_emb': True,
@@ -30,7 +29,6 @@ class BIMPM(nn.Module):
         self.fill_default_parameters()
         self.input_size = self.args['word_dim'] + int(self.args['use_char_emb']) * self.args['char_hidden_size']
         self.num_perspective = self.args['num_perspective']
-
         # Word Representation Layer
         self.char_emb = nn.Embedding(args['char_dict_size'],args['char_dim'], padding_idx=0)
         self.word_embedding = nn.Embedding(args['word_dict_size'], args['word_dim'])
@@ -38,7 +36,7 @@ class BIMPM(nn.Module):
         self.word_embedding.weight.requires_grad = False
         self.full_match = FullLayerMatch()
         self.max_pooling_match = MaxPoolingLayerMatch()
-        self.attention= BasicAttention()
+        self.attention = CosineAttention()
 
         self.char_LSTM = nn.LSTM(
             input_size=self.args['char_dim'],
@@ -46,7 +44,6 @@ class BIMPM(nn.Module):
             num_layers=1,
             bidirectional=False,
             batch_first=True)
-
         # Context Representation Layer
         self.context_LSTM = nn.LSTM(
             input_size=self.input_size,
@@ -55,12 +52,10 @@ class BIMPM(nn.Module):
             bidirectional=True,
             batch_first=True
         )
-
         # Matching Layer
         for i in range(1, 9):
             setattr(self, f'mp_w{i}',
                     nn.Parameter(torch.rand(self.num_perspective, self.args['hidden_size'])))
-
         # Aggregation Layer
         self.aggregation_LSTM = nn.LSTM(
             input_size=self.num_perspective * 8,
@@ -135,6 +130,24 @@ class BIMPM(nn.Module):
     def forward(self, ex):
         # ----- Word Representation Layer -----
         # (batch, seq_len) -> (batch, seq_len, word_dim)
+        if self.args['use_elmo']:
+            elmo_A = ex['Atoken']
+            elmo_B = ex['Btoken']
+            if self.args['use_elmo'] == 'only':
+                A = self.word_embedding(elmo_A)['elmo_representations'][0]
+                B = self.word_embedding(elmo_B)['elmo_representations'][0]
+            elif self.args['use_elmo'] == 'concat':
+                embedded_A = self.word_embedding(ex['Atoken_ids'])
+                embedded_B = self.word_embedding(ex['Btoken_ids'])
+                elmo_embedded_A = self.elmo_embedding(elmo_A)['elmo_representations'][0]
+                elmo_embedded_B = self.elmo_embedding(elmo_B)['elmo_representations'][0]
+                A = torch.cat((embedded_A, elmo_embedded_A), dim=-1)
+                B = torch.cat((embedded_B, elmo_embedded_B), dim=-1)
+            else:
+                raise ValueError('Invalid argument of [use_elmo] :{}'.format(self.args['use_elmo']))
+        else:
+            A = self.word_embedding(ex['Atoken_ids'])
+            B = self.word_embedding(ex['Btoken_ids'])
         A = self.word_embedding(ex['Atoken'])
         B = self.word_embedding(ex['Btoken'])
         Amask = ex['Amask'].unsqueeze(2).float()
@@ -143,11 +156,11 @@ class BIMPM(nn.Module):
 
         if self.args.use_char_emb:
             # (batch, seq_len, max_word_len) -> (batch * seq_len, max_word_len)
-            seq_len_A = ex['Achar'].size(1)
-            seq_len_B = ex['Bchar'].size(1)
+            seq_len_A = ex['Achar_ids'].size(1)
+            seq_len_B = ex['Bchar_ids'].size(1)
 
-            char_A = ex['Achar'].view(-1, self.args['max_word_length'])
-            char_B = ex['Bchar'].view(-1, self.args['max_word_length'])
+            char_A = ex['Achar_ids'].view(-1, self.args['max_word_length'])
+            char_B = ex['Bchar_ids'].view(-1, self.args['max_word_length'])
 
             # (batch * seq_len, max_word_len, char_dim)-> (1, batch * seq_len, char_hidden_size)
             _, (char_A, _) = self.char_LSTM(self.char_emb(char_A))
@@ -215,12 +228,12 @@ class BIMPM(nn.Module):
         att_A_bw = context_A_bw.unsqueeze(2) * att_bw.unsqueeze(3)
 
         # (batch, seq_len1, hidden_size) / (batch, seq_len1, 1) -> (batch, seq_len1, hidden_size)
-        att_mean_B_fw = div_with_small_value(att_B_fw.sum(dim=2), att_fw.sum(dim=2, keepdim=True))
-        att_mean_B_bw = div_with_small_value(att_B_bw.sum(dim=2), att_bw.sum(dim=2, keepdim=True))
+        att_mean_B_fw = att_B_fw.sum(dim=2) / (att_fw.sum(dim=2, keepdim=True) + 1e-13)
+        att_mean_B_bw = att_B_bw.sum(dim=2)/ (att_bw.sum(dim=2, keepdim=True) + 1e-13)
 
         # (batch, seq_len2, hidden_size) / (batch, seq_len2, 1) -> (batch, seq_len2, hidden_size)
-        att_mean_A_fw = div_with_small_value(att_A_fw.sum(dim=1), att_fw.sum(dim=1, keepdim=True).permute(0, 2, 1))
-        att_mean_A_bw = div_with_small_value(att_A_bw.sum(dim=1), att_bw.sum(dim=1, keepdim=True).permute(0, 2, 1))
+        att_mean_A_fw = att_A_fw.sum(dim=1) / (att_fw.sum(dim=1, keepdim=True).permute(0, 2, 1) + 1e-13)
+        att_mean_A_bw = att_A_bw.sum(dim=1) / (att_bw.sum(dim=1, keepdim=True).permute(0, 2, 1) + 1e-13)
 
         # (batch, seq_len, l)
         mv_A_att_mean_fw = self.full_match(context_A_fw, att_mean_B_fw, self.mp_w5)

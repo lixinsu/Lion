@@ -1,12 +1,18 @@
 #!/usr/bin/env python
 # coding: utf-8
-
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 import os
+import six
 import copy
 import spacy
 import logging
 import unicodedata
 import collections
+from shutil import copyfile
+
+import jieba
+import jieba.posseg as pseg
 
 
 logger = logging.getLogger(__name__)
@@ -123,6 +129,7 @@ class Tokenizer(object):
     """Base tokenizer class.
     Tokenizers implement tokenize, which should return a Tokens class.
     """
+
     def tokenize(self, text):
         raise NotImplementedError
 
@@ -139,6 +146,48 @@ class Tokenizer(object):
 
     def __del__(self):
         self.shutdown()
+
+
+class JiebaTokenizer(Tokenizer):
+    def __init__(self, **kwargs):
+        pass
+
+    def tokenize(self, text):
+        # discard newline
+        clean_text = text.replace('\n', ' ')
+        tokens, poss = [], []
+        for tok, pos in pseg.cut(clean_text):
+            tokens.append(tok)
+            poss.append(pos)
+        idxs = []
+        j = 0
+        i = 0
+        while i < len(tokens):
+            if clean_text[j:j+len(tokens[i])] == tokens[i]:
+                idxs.append(j)
+                j += len(tokens[i])
+                i += 1
+            else:
+                j += 1
+
+        # print(tokens)
+        # print(idxs)
+        data = []
+        for i in range(len(tokens)):
+            start_ws = idxs[i]
+            if i + 1 < len(tokens):
+                end_ws = idxs[i+1]
+            else:
+                end_ws = idxs[i] + len(tokens[i])
+            data.append((
+                tokens[i],
+                text[start_ws:end_ws],
+                (idxs[i], idxs[i] + len(tokens[i])),
+                poss[i],
+                tokens[i],
+                'fake',
+            ))
+        return Tokens(data)
 
 
 class SpacyTokenizer(Tokenizer):
@@ -160,7 +209,6 @@ class SpacyTokenizer(Tokenizer):
         tokens = self.nlp.tokenizer(clean_text)
         self.nlp.tagger(tokens)
         self.nlp.entity(tokens)
-
         data = []
         for i in range(len(tokens)):
             # Get whitespace
@@ -178,7 +226,6 @@ class SpacyTokenizer(Tokenizer):
                 tokens[i].lemma_,
                 tokens[i].ent_type_,
             ))
-
         # Set special option for non-entity tag: '' vs 'O' in spaCy
         return Tokens(data, opts={'non_ent': ''})
 
@@ -243,7 +290,8 @@ class BertTokenizer(Tokenizer):
             logger.warning(
                 "Token indices sequence length is longer than the specified maximum "
                 " sequence length for this BERT model ({} > {}). Running this"
-                " sequence through BERT will result in indexing errors".format(len(ids), self.max_len)
+                " sequence through BERT will result in indexing errors".format(
+                    len(ids), self.max_len)
             )
         return ids
 
@@ -478,10 +526,212 @@ class WordpieceTokenizer(Tokenizer):
         return output_tokens
 
 
+class XLNetTokenizer(Tokenizer):
+    """
+        SentencePiece based tokenizer. Peculiarities:
+
+            - requires `SentencePiece <https://github.com/google/sentencepiece>`_
+    """
+    max_model_input_sizes = {}
+    vocab_files_names = {}
+
+    def __init__(self, vocab_file, max_len=None, do_lower_case=False, remove_space=True, keep_accents=False, **kwargs):
+        super(XLNetTokenizer, self).__init__()
+        self.max_len = max_len if max_len is not None else int(1e12)
+
+        try:
+            import sentencepiece as spm
+        except ImportError:
+            logger.warning(
+                "You need to install SentencePiece to use XLNetTokenizer: https://github.com/google/sentencepiece"
+                "pip install sentencepiece")
+
+        self.do_lower_case = do_lower_case
+        self.remove_space = remove_space
+        self.keep_accents = keep_accents
+        self.vocab_file = vocab_file
+
+        self.sp_model = spm.SentencePieceProcessor()
+        self.sp_model.Load(vocab_file)
+        self.SPIECE_UNDERLINE = u'▁'
+
+    @property
+    def vocab_size(self):
+        return len(self.sp_model)
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state["sp_model"] = None
+        return state
+
+    def __setstate__(self, d):
+        self.__dict__ = d
+        try:
+            import sentencepiece as spm
+        except ImportError:
+            logger.warning(
+                "You need to install SentencePiece to use XLNetTokenizer: https://github.com/google/sentencepiece"
+                "pip install sentencepiece")
+        self.sp_model = spm.SentencePieceProcessor()
+        self.sp_model.Load(self.vocab_file)
+
+    def preprocess_text(self, inputs):
+        if self.remove_space:
+            outputs = ' '.join(inputs.strip().split())
+        else:
+            outputs = inputs
+        outputs = outputs.replace("``", '"').replace("''", '"')
+
+        if six.PY2 and isinstance(outputs, str):
+            outputs = outputs.decode('utf-8')
+
+        if not self.keep_accents:
+            outputs = unicodedata.normalize('NFKD', outputs)
+            outputs = ''.join([c for c in outputs if not unicodedata.combining(c)])
+        if self.do_lower_case:
+            outputs = outputs.lower()
+
+        return outputs
+
+    def tokenize(self, text, return_unicode=True, sample=False):
+        split_tokens = []
+        sub_tokens = self._tokenize(text, return_unicode=True, sample=False)
+        sub_token_ids = self.convert_tokens_to_ids(sub_tokens)
+
+        for sub_token in sub_token_ids:
+            split_tokens.append((
+                sub_token,
+                None,
+                None,
+                None,
+                None,
+                None,
+            ))
+        # return split_tokens
+        # Set special option for non-entity tag: '' vs 'O' in spaCy
+        return Tokens(split_tokens, opts={'non_ent': ''})
+
+    def _tokenize(self, text, return_unicode=True, sample=False):
+        """ Tokenize a string.
+            return_unicode is used only for py2
+        """
+        text = self.preprocess_text(text)
+
+        # note(zhiliny): in some systems, sentencepiece only accepts str for py2
+        if six.PY2 and isinstance(text, unicode):
+            text = text.encode('utf-8')
+
+        if not sample:
+            pieces = self.sp_model.EncodeAsPieces(text)
+        else:
+            pieces = self.sp_model.SampleEncodeAsPieces(text, 64, 0.1)
+        new_pieces = []
+        for piece in pieces:
+            if len(piece) > 1 and piece[-1] == ',' and piece[-2].isdigit():
+                cur_pieces = self.sp_model.EncodeAsPieces(
+                    piece[:-1].replace(self.SPIECE_UNDERLINE, ''))
+                if piece[0] != self.SPIECE_UNDERLINE and cur_pieces[0][0] == self.SPIECE_UNDERLINE:
+                    if len(cur_pieces[0]) == 1:
+                        cur_pieces = cur_pieces[1:]
+                    else:
+                        cur_pieces[0] = cur_pieces[0][1:]
+                cur_pieces.append(piece[-1])
+                new_pieces.extend(cur_pieces)
+            else:
+                new_pieces.append(piece)
+
+        # note(zhiliny): convert back to unicode for py2
+        if six.PY2 and return_unicode:
+            ret_pieces = []
+            for piece in new_pieces:
+                if isinstance(piece, str):
+                    piece = piece.decode('utf-8')
+                ret_pieces.append(piece)
+            new_pieces = ret_pieces
+
+        return new_pieces
+
+    def convert_tokens_to_ids(self, tokens):
+        """ Converts a single token, or a sequence of tokens, (str/unicode) in a single integer id
+            (resp. a sequence of ids), using the vocabulary.
+        """
+        if tokens is None:
+            return None
+
+        if isinstance(tokens, str) or (six.PY2 and isinstance(tokens, unicode)):
+            return self._convert_token_to_id(tokens)
+
+        ids = []
+        for token in tokens:
+            ids.append(self._convert_token_to_id(token))
+        if len(ids) > self.max_len:
+            logger.warning(
+                "Token indices sequence length is longer than the specified maximum "
+                " sequence length for this XLNET model ({} > {}). Running this"
+                " sequence through BERT will result in indexing errors".format(len(ids), self.max_len)
+            )
+        return ids
+
+    def _convert_token_to_id(self, token):
+        """ Converts a token (str/unicode) in an id using the vocab. """
+        return self.sp_model.PieceToId(token)
+
+    def convert_ids_to_tokens(self, ids, skip_special_tokens=False):
+        """ Converts a single index or a sequence of indices (integers) in a token "
+            (resp.) a sequence of tokens (str/unicode), using the vocabulary and added tokens.
+            Args:
+                skip_special_tokens: Don't decode special tokens (self.all_special_tokens). Default: False
+        """
+        if isinstance(ids, int):
+            if ids in self.added_tokens_decoder:
+                return self.added_tokens_decoder[ids]
+            else:
+                return self._convert_id_to_token(ids)
+        tokens = []
+        for index in ids:
+            if skip_special_tokens and index in self.all_special_ids:
+                continue
+            if index in self.added_tokens_decoder:
+                tokens.append(self.added_tokens_decoder[index])
+            else:
+                tokens.append(self._convert_id_to_token(index))
+        return tokens
+
+    def _convert_id_to_token(self, index, return_unicode=True):
+        """Converts an index (integer) in a token (string/unicode) using the vocab."""
+        token = self.sp_model.IdToPiece(index)
+        if six.PY2 and return_unicode and isinstance(token, str):
+            token = token.decode('utf-8')
+        return token
+
+    def convert_tokens_to_string(self, tokens):
+        """Converts a sequence of tokens (strings for sub-words) in a single string."""
+        out_string = ''.join(tokens).replace(self.SPIECE_UNDERLINE, ' ').strip()
+        return out_string
+
+    def save_vocabulary(self, save_directory):
+        """ Save the sentencepiece vocabulary (copy original file) and special tokens file
+            to a directory.
+        """
+        if not os.path.isdir(save_directory):
+            logger.error("Vocabulary path ({}) should be a directory".format(save_directory))
+            return
+        out_vocab_file = os.path.join(save_directory, 'spiece.model')
+
+        if os.path.abspath(self.vocab_file) != os.path.abspath(out_vocab_file):
+            copyfile(self.vocab_file, out_vocab_file)
+
+        return (out_vocab_file,)
+
+
 def get_class(name):
     if name == 'spacy':
         return SpacyTokenizer
     elif name == 'bert':
         return BertTokenizer
+    elif name == 'jieba':
+        return JiebaTokenizer
+    elif name == 'xlnet':
+        return XLNetTokenizer
     else:
-        raise "Unspport tokenize algorithm"
+        raise ValueError("Unspport tokenize algorithm:{}".format(name))

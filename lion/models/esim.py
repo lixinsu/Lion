@@ -3,12 +3,10 @@
 
 import torch
 import torch.nn as nn
-from torch.nn import functional as F
 
 from lion.modules.dropout import RNNDropout
-#from lion.modules.seq2seq_encoder import Seq2SeqEncoder
 from lion.modules.stacked_rnn import StackedBRNN
-from lion.modules.attention import SoftmaxAttention
+from lion.modules.attention import DotProductAttention, masked_softmax
 
 
 class ESIM(nn.Module):
@@ -46,7 +44,6 @@ class ESIM(nn.Module):
         self.hidden_size = args['hidden_size']
         self.num_classes = args['classes']
         self.dropout = args['dropout']
-
         self.word_embedding = nn.Embedding(self.vocab_size + 1,
                                            self.embedding_dim,
                                            padding_idx=0,
@@ -59,7 +56,7 @@ class ESIM(nn.Module):
                                      dropout_rate=0, dropout_output=False, rnn_type=nn.LSTM,
                                      concat_layers=False, padding=False)
 
-        self._attention = SoftmaxAttention()
+        self._attention = DotProductAttention()
 
         self._projection = nn.Sequential(nn.Linear(4*2*self.hidden_size,
                                                    self.hidden_size),
@@ -101,8 +98,8 @@ class ESIM(nn.Module):
             probabilities: A tensor of size (batch, num_classes) containing
                 the probabilities of each output class in the model.
         """
-        premises = ex['Atoken']
-        hypotheses = ex['Btoken']
+        premises = ex['Atoken_ids']
+        hypotheses = ex['Btoken_ids']
         premises_mask = ex['Amask']
         hypotheses_mask = ex['Bmask']
         Amask = torch.ByteTensor(premises.size(0), premises.size(1)).fill_(1)
@@ -114,21 +111,41 @@ class ESIM(nn.Module):
         premises_mask = Amask.cuda()
         hypotheses_mask = Bmask.cuda()
 
-        embedded_premises = self.word_embedding(premises)
-        embedded_hypotheses = self.word_embedding(hypotheses)
+        if self.args['use_elmo']:
+            elmo_premises = ex['Atoken']
+            elmo_hypotheses = ex['Btoken']
+            if self.args['use_elmo'] == 'only':
+                embedded_premises = self.word_embedding(elmo_premises)['elmo_representations'][0]
+                embedded_hypotheses = self.word_embedding(elmo_hypotheses)['elmo_representations'][0]
+            elif self.args['use_elmo'] == 'concat':
+                embedded_premises = self.word_embedding(premises)
+                embedded_hypotheses = self.word_embedding(hypotheses)
+                elmo_embedded_premises = self.elmo_embedding(elmo_premises)['elmo_representations'][0]
+                elmo_embedded_hypotheses = self.elmo_embedding(elmo_hypotheses)['elmo_representations'][0]
+                embedded_premises = torch.cat((embedded_premises, elmo_embedded_premises), dim=-1)
+                embedded_hypotheses = torch.cat((embedded_hypotheses, elmo_embedded_hypotheses), dim=-1)
+            else:
+                raise ValueError('Invalid argument of [use_elmo] :{}'.format(self.args['use_elmo']))
+        else:
+            embedded_premises = self.word_embedding(premises)
+            embedded_hypotheses = self.word_embedding(hypotheses)
 
         if self.dropout:
             embedded_premises = self._rnn_dropout(embedded_premises)
             embedded_hypotheses = self._rnn_dropout(embedded_hypotheses)
 
         encoded_premises = self._encoding(embedded_premises,
-                                          premises_mask)
+                                          premises_mask.bool())
         encoded_hypotheses = self._encoding(embedded_hypotheses,
-                                            hypotheses_mask)
+                                            hypotheses_mask.bool())
 
-        attended_premises, attended_hypotheses =\
-            self._attention(encoded_premises, encoded_hypotheses,
-                            premises_mask, hypotheses_mask)
+        attention_weight = self._attention(encoded_premises, encoded_hypotheses,
+                            premises_mask.bool(), hypotheses_mask.bool())
+        premises_att_weigth = masked_softmax(attention_weight, premises_mask.bool(),  dim=1)
+        hypotheses_att_weigth = masked_softmax(attention_weight, hypotheses_mask.bool())
+
+        attended_premises = hypotheses_att_weigth.bmm(encoded_hypotheses)
+        attended_hypotheses = premises_att_weigth.transpose(1, 2).bmm(encoded_premises)
 
         enhanced_premises = torch.cat([encoded_premises,
                                        attended_premises,
@@ -148,8 +165,8 @@ class ESIM(nn.Module):
             projected_premises = self._rnn_dropout(projected_premises)
             projected_hypotheses = self._rnn_dropout(projected_hypotheses)
 
-        v_ai = self._composition(projected_premises, premises_mask)
-        v_bj = self._composition(projected_hypotheses, hypotheses_mask)
+        v_ai = self._composition(projected_premises, premises_mask.bool())
+        v_bj = self._composition(projected_hypotheses, hypotheses_mask.bool())
 
         reversed_premises_mask = (1-premises_mask).float()
         reversed_hypotheses_mask = (1 - hypotheses_mask).float()
@@ -159,8 +176,8 @@ class ESIM(nn.Module):
         v_b_avg = torch.sum(v_bj * reversed_hypotheses_mask.unsqueeze(2), dim=1)\
             / torch.sum(reversed_hypotheses_mask, dim=1, keepdim=True)
 
-        v_ai = v_ai.masked_fill(premises_mask.unsqueeze(2), -1e7)
-        v_bj = v_bj.masked_fill(hypotheses_mask.unsqueeze(2), -1e7)
+        v_ai = v_ai.masked_fill(premises_mask.unsqueeze(2).bool(), -1e7)
+        v_bj = v_bj.masked_fill(hypotheses_mask.unsqueeze(2).bool(), -1e7)
 
         v_a_max, _ = v_ai.max(dim=1)
         v_b_max, _ = v_bj.max(dim=1)
