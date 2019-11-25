@@ -1,13 +1,10 @@
 dev_file: data/preprocessed/QNLI/dev_xlnet.jsonl
 meta_dir: data/preprocessed/QNLI/
 train_file: data/preprocessed/QNLI/train_xlnet.jsonl
-#dev_file: data/preprocessed/SNLIdebug/dev_bert.jsonl
-#meta_dir: data/preprocessed/SNLIdebug/
-#train_file: data/preprocessed/SNLIdebug/train_bert.jsonl
 network: xlnet
 fix_embeddings: false
 use_cuda: true
-batch_size: 32
+batch_size: 28
 epoches: 3
 optimizer: bert-adam
 length_limit: 128

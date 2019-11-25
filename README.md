@@ -72,7 +72,7 @@ Performance on the dev set
   </tr>
   <tr>
     <td align="center", bgcolor=#eeeeee> XLNET </td>
-    <td align="center", bgcolor=#eeeeee> 90.9   </td>
+    <td align="center", bgcolor=#eeeeee> 91.2   </td>
     <td align="center", bgcolor=#eeeeee> 91.6   </td>
     <td align="center", bgcolor=#eeeeee> 91.7  </td>
   </tr>
