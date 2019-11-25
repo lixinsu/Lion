@@ -18,7 +18,7 @@ from lion.models import get_model_class
 class MatchingModel:
     def __init__(self, params, state_dict=None):
         self.params = params
-        if params.network == 'bert':
+        if params.network == 'bert' or params.network == 'xlnet':
             self.network = get_model_class(params.network).from_pretrained(params.model_dir, params.classes)
         else:
             self.network = get_model_class(params.network)(params)

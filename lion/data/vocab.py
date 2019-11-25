@@ -6,7 +6,6 @@ import json
 import unicodedata
 
 
-
 class Dictionary(object):
     NULL = '<NULL>'
     UNK = '<UNK>'

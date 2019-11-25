@@ -1,9 +1,9 @@
-dev_file: data/preprocessed/QQP/dev_bert.jsonl
-meta_dir: data/preprocessed/QQP/
-train_file: data/preprocessed/QQP/train_bert.jsonl
-#dev_file: data/preprocessed/SNLIdebug/dev_bert.jsonl
-#meta_dir: data/preprocessed/SNLIdebug/
-#train_file: data/preprocessed/SNLIdebug/train_bert.jsonl
+#dev_file: data/preprocessed/QQP/dev_bert.jsonl
+#meta_dir: data/preprocessed/QQP/
+#train_file: data/preprocessed/QQP/train_bert.jsonl
+dev_file: data/preprocessed/SNLIdebug/dev_bert.jsonl
+meta_dir: data/preprocessed/SNLIdebug/
+train_file: data/preprocessed/SNLIdebug/train_bert.jsonl
 network: bert
 fix_embeddings: false
 use_cuda: true

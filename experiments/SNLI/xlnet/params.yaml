@@ -1,0 +1,13 @@
+dev_file: data/preprocessed/SNLI/dev_xlnet.jsonl
+meta_dir: data/preprocessed/SNLI/
+train_file: data/preprocessed/SNLI/train_xlnet.jsonl
+network: xlnet
+fix_embeddings: false
+use_cuda: true
+batch_size: 28
+epoches: 3
+optimizer: bert-adam
+length_limit: 128
+learning_rate: 2.0e-5
+warmup_proportion: 0.1
+model_dir: ../xlnet-base-py/

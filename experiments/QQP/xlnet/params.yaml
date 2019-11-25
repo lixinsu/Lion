@@ -1,0 +1,13 @@
+dev_file: data/preprocessed/QQP/dev_xlnet.jsonl
+meta_dir: data/preprocessed/QQP/
+train_file: data/preprocessed/QQP/train_xlnet.jsonl
+network: xlnet
+fix_embeddings: false
+use_cuda: true
+batch_size: 32
+epoches: 3
+optimizer: bert-adam
+length_limit: 128
+learning_rate: 3.0e-5
+warmup_proportion: 0.1
+model_dir: ../xlnet-base-py/
