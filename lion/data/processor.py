@@ -78,8 +78,6 @@ def process_dataset(in_dir, out_dir, splits=['train', 'dev', 'test'],
                     tokenizer_name='spacy', vocab_file=None, max_length=128):
     def jsondump(data, filename):
         json.dump(data, open(osp.join(out_dir, filename), 'w'), indent=2, ensure_ascii=False)
-        json.dump(data, open(osp.join(out_dir, filename), 'w'), indent=2)
-
     if tokenizer_name == 'bert':
         tokenizer = get_class(tokenizer_name)(vocab_file)
     elif tokenizer_name == 'xlnet':
