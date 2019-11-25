@@ -135,14 +135,14 @@ class ESIM(nn.Module):
             embedded_hypotheses = self._rnn_dropout(embedded_hypotheses)
 
         encoded_premises = self._encoding(embedded_premises,
-                                          premises_mask)
+                                          premises_mask.bool())
         encoded_hypotheses = self._encoding(embedded_hypotheses,
-                                            hypotheses_mask)
+                                            hypotheses_mask.bool())
 
         attention_weight = self._attention(encoded_premises, encoded_hypotheses,
-                            premises_mask, hypotheses_mask)
-        premises_att_weigth = masked_softmax(attention_weight, premises_mask,  dim=1)
-        hypotheses_att_weigth = masked_softmax(attention_weight, hypotheses_mask)
+                            premises_mask.bool(), hypotheses_mask.bool())
+        premises_att_weigth = masked_softmax(attention_weight, premises_mask.bool(),  dim=1)
+        hypotheses_att_weigth = masked_softmax(attention_weight, hypotheses_mask.bool())
 
         attended_premises = hypotheses_att_weigth.bmm(encoded_hypotheses)
         attended_hypotheses = premises_att_weigth.transpose(1, 2).bmm(encoded_premises)
@@ -165,8 +165,8 @@ class ESIM(nn.Module):
             projected_premises = self._rnn_dropout(projected_premises)
             projected_hypotheses = self._rnn_dropout(projected_hypotheses)
 
-        v_ai = self._composition(projected_premises, premises_mask)
-        v_bj = self._composition(projected_hypotheses, hypotheses_mask)
+        v_ai = self._composition(projected_premises, premises_mask.bool())
+        v_bj = self._composition(projected_hypotheses, hypotheses_mask.bool())
 
         reversed_premises_mask = (1-premises_mask).float()
         reversed_hypotheses_mask = (1 - hypotheses_mask).float()
@@ -176,8 +176,8 @@ class ESIM(nn.Module):
         v_b_avg = torch.sum(v_bj * reversed_hypotheses_mask.unsqueeze(2), dim=1)\
             / torch.sum(reversed_hypotheses_mask, dim=1, keepdim=True)
 
-        v_ai = v_ai.masked_fill(premises_mask.unsqueeze(2), -1e7)
-        v_bj = v_bj.masked_fill(hypotheses_mask.unsqueeze(2), -1e7)
+        v_ai = v_ai.masked_fill(premises_mask.unsqueeze(2).bool(), -1e7)
+        v_bj = v_bj.masked_fill(hypotheses_mask.unsqueeze(2).bool(), -1e7)
 
         v_a_max, _ = v_ai.max(dim=1)
         v_b_max, _ = v_bj.max(dim=1)

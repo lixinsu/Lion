@@ -65,7 +65,6 @@ def train():
     """Train model."""
     config_file = osp.join(args.output_dir, 'params.yaml')
     params = Param.load(config_file)
-    logger.info('\n' + str(params))
     params = check_fill_parameters(params, split='train')
     params.update({'output_dir': args.output_dir})
     writer = SummaryWriter(params.output_dir)
@@ -80,6 +79,7 @@ def train():
         params.update({'{}_dict_size'.format(vocab_name): len(vocab_)})
         params.update({'{}_dict'.format(vocab_name): vocab_})
     params.update({'classes': len(params['labelmapping_dict'])})
+    logger.info('\n' + str(params))
     train_dataset = LionDataset(params.train_file, params)
     # pre-compute num train steps for `bert`
     params.num_train_optimization_steps = int(math.ceil(len(train_dataset) / params.batch_size * params.epoches))
