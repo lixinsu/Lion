@@ -8,6 +8,9 @@ import logging
 import unicodedata
 import collections
 
+import jieba
+import jieba.posseg as pseg
+
 
 logger = logging.getLogger(__name__)
 
@@ -123,6 +126,7 @@ class Tokenizer(object):
     """Base tokenizer class.
     Tokenizers implement tokenize, which should return a Tokens class.
     """
+
     def tokenize(self, text):
         raise NotImplementedError
 
@@ -139,6 +143,48 @@ class Tokenizer(object):
 
     def __del__(self):
         self.shutdown()
+
+
+class JiebaTokenizer(Tokenizer):
+    def __init__(self, **kwargs):
+        pass
+
+    def tokenize(self, text):
+        # discard newline
+        clean_text = text.replace('\n', ' ')
+        tokens, poss = [], []
+        for tok, pos in pseg.cut(clean_text):
+            tokens.append(tok)
+            poss.append(pos)
+        idxs = []
+        j = 0
+        i = 0
+        while i < len(tokens):
+            if clean_text[j:j+len(tokens[i])] == tokens[i]:
+                idxs.append(j)
+                j += len(tokens[i])
+                i += 1
+            else:
+                j += 1
+
+        # print(tokens)
+        # print(idxs)
+        data = []
+        for i in range(len(tokens)):
+            start_ws = idxs[i]
+            if i + 1 < len(tokens):
+                end_ws = idxs[i+1]
+            else:
+                end_ws = idxs[i] + len(tokens[i])
+            data.append((
+                tokens[i],
+                text[start_ws:end_ws],
+                (idxs[i], idxs[i] + len(tokens[i])),
+                poss[i],
+                tokens[i],
+                'fake',
+            ))
+        return Tokens(data)
 
 
 class SpacyTokenizer(Tokenizer):
@@ -160,7 +206,6 @@ class SpacyTokenizer(Tokenizer):
         tokens = self.nlp.tokenizer(clean_text)
         self.nlp.tagger(tokens)
         self.nlp.entity(tokens)
-
         data = []
         for i in range(len(tokens)):
             # Get whitespace
@@ -178,7 +223,6 @@ class SpacyTokenizer(Tokenizer):
                 tokens[i].lemma_,
                 tokens[i].ent_type_,
             ))
-
         # Set special option for non-entity tag: '' vs 'O' in spaCy
         return Tokens(data, opts={'non_ent': ''})
 
@@ -243,7 +287,8 @@ class BertTokenizer(Tokenizer):
             logger.warning(
                 "Token indices sequence length is longer than the specified maximum "
                 " sequence length for this BERT model ({} > {}). Running this"
-                " sequence through BERT will result in indexing errors".format(len(ids), self.max_len)
+                " sequence through BERT will result in indexing errors".format(
+                    len(ids), self.max_len)
             )
         return ids
 
@@ -483,5 +528,7 @@ def get_class(name):
         return SpacyTokenizer
     elif name == 'bert':
         return BertTokenizer
+    elif name == 'jieba':
+        return JiebaTokenizer
     else:
         raise "Unspport tokenize algorithm"
