@@ -4,3 +4,4 @@ meta_dir: data/preprocessed/QQP/
 embedding_file: "data/embeddings/glove.840B.300d.txt"
 network: bimpm
 use_cuda: true
+batch_size: 32

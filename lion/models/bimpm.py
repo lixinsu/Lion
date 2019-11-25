@@ -131,8 +131,8 @@ class BIMPM(nn.Module):
         # ----- Word Representation Layer -----
         # (batch, seq_len) -> (batch, seq_len, word_dim)
         if self.args['use_elmo']:
-            elmo_A = ex['Atoken']
-            elmo_B = ex['Btoken']
+            elmo_A = ex['Atoken_ids']
+            elmo_B = ex['Btoken_ids']
             if self.args['use_elmo'] == 'only':
                 A = self.word_embedding(elmo_A)['elmo_representations'][0]
                 B = self.word_embedding(elmo_B)['elmo_representations'][0]
@@ -148,6 +148,10 @@ class BIMPM(nn.Module):
         else:
             A = self.word_embedding(ex['Atoken_ids'])
             B = self.word_embedding(ex['Btoken_ids'])
+
+        Amask = ex['Amask'].unsqueeze(2).float()
+        Bmask = ex['Bmask'].unsqueeze(2).float()
+
 
         if self.args.use_char_emb:
             # (batch, seq_len, max_word_len) -> (batch * seq_len, max_word_len)
@@ -171,13 +175,14 @@ class BIMPM(nn.Module):
 
         A = self.dropout(A)
         B = self.dropout(B)
-        # ----- Context Representation Layer -----
+
+        # Context Representation Layer
         # (batch, seq_len, hidden_size * 2)
         context_A, _ = self.context_LSTM(A)
         context_B, _ = self.context_LSTM(B)
 
-        context_A = self.dropout(context_A)
-        context_B = self.dropout(context_B)
+        context_A = self.dropout(context_A*Amask)
+        context_B = self.dropout(context_B*Bmask)
 
         # (batch, seq_len, hidden_size)
         context_A_fw, context_A_bw = torch.split(context_A, self.args['hidden_size'], dim=-1)
@@ -258,10 +263,10 @@ class BIMPM(nn.Module):
             [mv_B_full_fw, mv_B_max_fw, mv_B_att_mean_fw, mv_B_att_max_fw,
              mv_B_full_bw, mv_B_max_bw, mv_B_att_mean_bw, mv_B_att_max_bw], dim=2)
 
-        mv_A = self.dropout(mv_A)
-        mv_B = self.dropout(mv_B)
+        mv_A = self.dropout(mv_A)*Amask
+        mv_B = self.dropout(mv_B)*Bmask
 
-        # ----- Aggregation Layer -----
+        # Aggregation Layer
         # (batch, seq_len, l * 8) -> (2, batch, hidden_size)
         _, (agg_A_last, _) = self.aggregation_LSTM(mv_A)
         _, (agg_B_last, _) = self.aggregation_LSTM(mv_B)
@@ -272,7 +277,7 @@ class BIMPM(nn.Module):
              agg_B_last.permute(1, 0, 2).contiguous().view(-1, self.args['hidden_size'] * 2)], dim=1)
         output = self.dropout(output)
 
-        # ----- Prediction Layer -----
+        # Prediction Layer
         output = torch.tanh(self.pred_fc1(output))
         output = self.dropout(output)
         logits = self.pred_fc2(output)
