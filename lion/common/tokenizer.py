@@ -727,7 +727,7 @@ class RobertaTokenizer(Tokenizer):
           the spaces at the beginning of a string: `tokenizer.decode(tokenizer.encode(" Hello")) = "Hello"
     """
     def __init__(self, vocab_file, merges_file, max_len=None):
-        super(GPT2Tokenizer, self).__init__()
+        super(RobertaTokenizer, self).__init__()
         self.unk_token = "<unk>"
         self.max_len = max_len if max_len is not None else int(1e12)
         self.encoder = json.load(open(vocab_file, encoding="utf-8"))

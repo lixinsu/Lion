@@ -38,8 +38,8 @@ class RobertaModel(BertModel):
     def forward(self, input_ids, attention_mask=None, output_all_encoded_layers=False):
         if input_ids[:, 0].sum().item() != 0:
             print("A sequence with no special tokens has been passed to the RoBERTa model. "
-                           "This model requires special tokens in order to work. "
-                           "Please specify add_special_tokens=True in your encoding.")
+                  "This model requires special tokens in order to work. "
+                  "Please specify add_special_tokens=True in your encoding.")
         return super(RobertaModel, self).forward(input_ids, attention_mask=attention_mask,
                                                  output_all_encoded_layers=output_all_encoded_layers)
 

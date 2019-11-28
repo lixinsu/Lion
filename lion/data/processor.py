@@ -92,15 +92,17 @@ def process_dataset(in_dir, out_dir, splits=['train', 'dev', 'test'],
                     tokenizer_name='spacy', vocab_file=None, max_length=128, **kwargs):
     def jsondump(data, filename):
         json.dump(data, open(osp.join(out_dir, filename), 'w'), indent=2, ensure_ascii=False)
-    if tokenizer_name == 'bert':
+
+    if tokenizer_name == 'bert' or tokenizer_name == 'xlnet':
+        if not vocab_file:
+            raise ValueError('Bert model should use an existing vocab')
         tokenizer = get_class(tokenizer_name)(vocab_file)
-    elif tokenizer_name == 'xlnet':
-        tokenizer = get_class(tokenizer_name)(vocab_file)
-    elif tokenizer_name == 'roberta' or tokenizer_name == 'gpt2':
+    elif tokenizer_name == 'roberta':
         merges_file = kwargs.pop('merges_file')
         tokenizer = get_class(tokenizer_name)(vocab_file, merges_file)
     else:
         tokenizer = get_class(tokenizer_name)()
+
     if not osp.exists(out_dir):
         os.makedirs(out_dir, exist_ok=True)
 
@@ -113,12 +115,9 @@ def process_dataset(in_dir, out_dir, splits=['train', 'dev', 'test'],
         processed = []
         for datum in tqdm(dataset):
             try:
-                processed.append(process_datum(datum, tokenizer, label2index))
-            except Exception as e:
-                print(e)
                 processed.append(process_datum(datum, tokenizer, label2index, max_length))
-            except:
-                raise ValueError('Bae line {}'.format(datum))
+            except Exception as e:
+                raise ValueError('Exception: {}, Bae line {}'.format(e, datum, ensure_ascii=False))
         if tokenizer_name != 'xlnet' and tokenizer_name != 'roberta':
             char_dict, word_dict, pos_dict, ner_dict = gather_dict(processed)
             jsondump(char_dict, 'char.json')
@@ -128,6 +127,10 @@ def process_dataset(in_dir, out_dir, splits=['train', 'dev', 'test'],
         out_file = open(osp.join(out_dir, 'train_{}.jsonl'.format(tokenizer_name)), 'w')
         for datum in processed:
             out_file.write('{}\n'.format(json.dumps(datum, ensure_ascii=False)))
+
+    if 'train' not in splits:
+        raise ValueError('`splits` argument must contain `train` otherwise `label2index` will be NontType!')
+
     if 'dev' in splits:
         split = 'dev.jsonl'
         filename = osp.join(in_dir, split)
@@ -137,8 +140,8 @@ def process_dataset(in_dir, out_dir, splits=['train', 'dev', 'test'],
         for datum in tqdm(dataset):
             try:
                 processed.append(process_datum(datum, tokenizer, label2index, max_length))
-            except:
-                raise ValueError('Bae line {}'.format(datum, ensure_ascii=False))
+            except Exception as e:
+                raise ValueError('Exception: {}, Bae line {}'.format(e, datum, ensure_ascii=False))
         for datum in processed:
             out_file.write('{}\n'.format(json.dumps(datum)))
     if 'test' in splits:
@@ -150,8 +153,8 @@ def process_dataset(in_dir, out_dir, splits=['train', 'dev', 'test'],
         for datum in tqdm(dataset):
             try:
                 processed.append(process_datum(datum, tokenizer, label2index, max_length))
-            except:
-                raise ValueError('Bae line {}'.format(datum))
+            except Exception as e:
+                raise ValueError('Exception: {}, Bae line {}'.format(e, datum, ensure_ascii=False))
         for datum in processed:
             out_file.write('{}\n'.format(json.dumps(datum, ensure_ascii=False)))
 
