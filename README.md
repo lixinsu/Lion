@@ -73,7 +73,7 @@ dropout:
     <td align="center", bgcolor=#eeeeee> XLNET </td>
     <td align="center", bgcolor=#eeeeee> 91.5   </td>
     <td align="center", bgcolor=#eeeeee> 91.6   </td>
-    <td align="center", bgcolor=#eeeeee> 91.7  </td>
+    <td align="center", bgcolor=#eeeeee> 91.9  </td>
   </tr>
 </table>
 
