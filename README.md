@@ -44,7 +44,6 @@ dropout:
 
 ## Models
 
-Performance on the dev set
 <table>
   <tr>
     <th width=25%, bgcolor=#999999 >Model</th> 
@@ -54,15 +53,15 @@ Performance on the dev set
   </tr>
   <tr>
     <td align="center", bgcolor=#eeeeee> BiMPM </td>
-    <td align="center", bgcolor=#eeeeee> 86.9(88.17) </td>
-    <td align="center", bgcolor=#eeeeee> 86.0(86.9) </td>
-    <td align="center", bgcolor=#eeeeee>  </td>
+    <td align="center", bgcolor=#eeeeee> 86.9 </td>
+    <td align="center", bgcolor=#eeeeee> 86.0 </td>
+    <td align="center", bgcolor=#eeeeee> 80.5 </td>
   </tr>
   <tr>
     <td align="center", bgcolor=#eeeeee> Esim </td>
     <td align="center", bgcolor=#eeeeee> 88.4 </td>
     <td align="center", bgcolor=#eeeeee> 87.4 </td>
-    <td align="center", bgcolor=#eeeeee>  </td>
+    <td align="center", bgcolor=#eeeeee> 81.4 </td>
   </tr>
 <tr>
     <td align="center", bgcolor=#eeeeee> BERT </td>
@@ -72,11 +71,19 @@ Performance on the dev set
   </tr>
   <tr>
     <td align="center", bgcolor=#eeeeee> XLNET </td>
-    <td align="center", bgcolor=#eeeeee> 91.2   </td>
+    <td align="center", bgcolor=#eeeeee> 91.5   </td>
     <td align="center", bgcolor=#eeeeee> 91.6   </td>
-    <td align="center", bgcolor=#eeeeee> 91.7  </td>
+    <td align="center", bgcolor=#eeeeee> 91.9  </td>
   </tr>
 </table>
+
+**Note**: All the performance in the above table is tested on the dev set. The hyperparameter we used for these models
+ are all in the `experiments/DATASET/MODEL` directory.
+
+## How to use ELMO
+
+Just write this in your config file: `use_elmo: concat or only` and remember to set the `word_dim` correctly. 
+For example if you use ELMO embedding only, set the `word_dim: 1024` or set the `word_dim: 1324` if you use ELMO and GLove together.
 
 ## License
 
