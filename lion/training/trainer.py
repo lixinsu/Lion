@@ -76,7 +76,7 @@ def train():
         else:
             # Load vocab from self-create file
             # Do not add <unk> and <null> for pos, ner and label dict
-            if vocab_name == 'char':
+            if vocab_name == 'char' or vocab_name == 'word':
                 add_special_tokens = True
             else:
                 add_special_tokens = False
