@@ -63,7 +63,7 @@ def train():
     params.update({'output_dir': args.output_dir})
     writer = SummaryWriter(params.output_dir)
 
-    for vocab_name in ['char', 'word', 'pos', 'ner', 'labelmapping']:
+    for vocab_name in ['char', 'word', 'pos', 'ner']:
         if vocab_name == 'word' and 'vocab_file' in params and params['vocab_file'] is not None:
             # Load vocab from existing file
             vocab_ = Dictionary.load_vocab(params.vocab_file)
@@ -74,15 +74,12 @@ def train():
                 add_special_tokens = True
             else:
                 add_special_tokens = False
-            # For label dict, min count should less than 0
-            if vocab_name == 'labelmapping':
-                min_count = -1
-            else:
-                min_count = params.min_cnt
             vocab_ = Dictionary.load_json(osp.join(params.meta_dir, '{}.json'.format(vocab_name)),
-                                          min_cnt=min_count, add_special_tokens=add_special_tokens)
+                                          min_cnt=params.min_cnt, add_special_tokens=add_special_tokens)
         params.update({'{}_dict_size'.format(vocab_name): len(vocab_)})
         params.update({'{}_dict'.format(vocab_name): vocab_})
+    params.labelmapping = json.load(open(osp.join(params.meta_dir, 'labelmapping.json')))
+    params.classes = len(set(params.labelmapping.values()))
     logger.info('\n' + str(params))
     train_dataset = LionDataset(params.train_file, params)
     # pre-compute num train steps for `bert`
