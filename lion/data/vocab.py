@@ -9,15 +9,16 @@ import unicodedata
 class Dictionary(object):
     NULL = '<NULL>'
     UNK = '<UNK>'
-    START = 2
 
     @staticmethod
     def normalize(token):
         return unicodedata.normalize('NFD', token)
 
-    def __init__(self):
-        self.tok2ind = {self.NULL: 0, self.UNK: 1}
-        self.ind2tok = {0: self.NULL, 1: self.UNK}
+    def __init__(self, add_special_tokens=True):
+        self.tok2ind, self.ind2tok = {}, {}
+        if add_special_tokens:
+            self.tok2ind = {self.NULL: 0, self.UNK: 1}
+            self.ind2tok = {0: self.NULL, 1: self.UNK}
 
     def __len__(self):
         return len(self.tok2ind)
@@ -63,8 +64,9 @@ class Dictionary(object):
         return tokens
 
     @classmethod
-    def load_json(cls, vocab_file, min_cnt=0):
-        vocab = cls()
+    def load_json(cls, vocab_file, min_cnt=0, add_special_tokens=True):
+        """Loads our preprocessed vocab json file."""
+        vocab = cls(add_special_tokens)
         for k, v in json.load(open(vocab_file)).items():
             assert v is not None
             if v > min_cnt:
@@ -72,9 +74,9 @@ class Dictionary(object):
         return vocab
 
     @classmethod
-    def load_txt(cls, vocab_file, min_cnt=0):
-        """Loads a vocabulary file into a dictionary."""
-        vocab = cls()
+    def load_vocab(cls, vocab_file):
+        """Loads an existing vocabulary file ."""
+        vocab = cls(add_special_tokens=False)
         index = 0
         with open(vocab_file, "r", encoding="utf-8") as reader:
             while True:

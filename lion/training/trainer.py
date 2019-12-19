@@ -62,21 +62,30 @@ def train():
     params = check_fill_parameters(params, split='train')
     params.update({'output_dir': args.output_dir})
     writer = SummaryWriter(params.output_dir)
+
     for vocab_name in ['char', 'word', 'pos', 'ner', 'labelmapping']:
         if vocab_name == 'word' and 'vocab_file' in params and params['vocab_file'] is not None:
             # Load vocab from existing file
-            vocab_ = Dictionary.load_txt(params.vocab_file)
-        elif vocab_name == 'labelmapping':
-            # Load vocab from self-create file
-            vocab_ = json.load(open(osp.join(params.meta_dir, '{}.json'.format(vocab_name))))
+            vocab_ = Dictionary.load_vocab(params.vocab_file)
         else:
             # Load vocab from self-create file
+            # Do not add <unk> and <null> for pos, ner and label dict
+            if vocab_name == 'char' or vocab_name == 'word':
+                add_special_tokens = True
+            else:
+                add_special_tokens = False
+            # For label dict, min count should less than 0
+            if vocab_name == 'labelmapping':
+                min_count = -1
+            else:
+                min_count = params.min_cnt
             vocab_ = Dictionary.load_json(osp.join(params.meta_dir, '{}.json'.format(vocab_name)),
-                                          min_cnt=params.min_cnt)
+                                          min_cnt=min_count, add_special_tokens=add_special_tokens)
         params.update({'{}_dict_size'.format(vocab_name): len(vocab_)})
         params.update({'{}_dict'.format(vocab_name): vocab_})
     params.update({'classes': len(set(params['labelmapping_dict'].values()))})
     logger.info('\n' + str(params))
+
     train_dataset = LionDataset(params.train_file, params)
     # pre-compute num train steps for `bert`
     params.num_train_optimization_steps = int(math.ceil(len(train_dataset) / params.batch_size * params.epoches))
