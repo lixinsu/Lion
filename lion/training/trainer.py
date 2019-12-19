@@ -83,9 +83,7 @@ def train():
                                           min_cnt=min_count, add_special_tokens=add_special_tokens)
         params.update({'{}_dict_size'.format(vocab_name): len(vocab_)})
         params.update({'{}_dict'.format(vocab_name): vocab_})
-    params.update({'classes': len(set(params['labelmapping_dict'].values()))})
     logger.info('\n' + str(params))
-
     train_dataset = LionDataset(params.train_file, params)
     # pre-compute num train steps for `bert`
     params.num_train_optimization_steps = int(math.ceil(len(train_dataset) / params.batch_size * params.epoches))
