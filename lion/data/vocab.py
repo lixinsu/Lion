@@ -69,9 +69,6 @@ class Dictionary(object):
                   if k not in {'<NULL>', '<UNK>'}]
         return tokens
 
-    def unique_ids(self):
-        return set(self.tok2ind.values())
-
     @classmethod
     def load_json(cls, vocab_file, min_cnt=0, add_special_tokens=True):
         """Loads our preprocessed vocab json file."""
