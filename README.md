@@ -39,7 +39,7 @@ dropout:
  `python lion/training/trainer.py --evaluate --output_dir experiments/QQP/esim/ --dev_file your_dev_path`
  
  ### Testing:
-`python lion/training/trainer.py --test --output_dir experiments/QQP/esim/ --test_file your_test_file`
+`python lion/training/trainer.py --predict --output_dir experiments/QQP/esim/ --test_file your_test_file`
 
 
 ## Models
