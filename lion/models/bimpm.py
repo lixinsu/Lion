@@ -131,8 +131,8 @@ class BIMPM(nn.Module):
         # ----- Word Representation Layer -----
         # (batch, seq_len) -> (batch, seq_len, word_dim)
         if self.args['use_elmo']:
-            elmo_A = ex['Atoken_ids']
-            elmo_B = ex['Btoken_ids']
+            elmo_A = ex['Atoken']
+            elmo_B = ex['Btoken']
             if self.args['use_elmo'] == 'only':
                 A = self.word_embedding(elmo_A)['elmo_representations'][0]
                 B = self.word_embedding(elmo_B)['elmo_representations'][0]
