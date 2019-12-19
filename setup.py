@@ -20,7 +20,7 @@ install_requires = [
     'numpy >= 1.14',
     'tqdm >= 4.19.4',
     'pandas >= 0.23.1',
-    'pytorch >= 1.0',
+    'torch >= 1.0',
     'spacy >= 2.0'
 ]
 
