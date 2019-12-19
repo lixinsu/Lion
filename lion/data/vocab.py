@@ -54,6 +54,12 @@ class Dictionary(object):
             self.tok2ind[token] = index
             self.ind2tok[index] = token
 
+    def __str__(self):
+        if len(self.tok2ind) < 20:
+            return str(self.tok2ind)
+        else:
+            return str(list(self.tok2ind.items())[:10]) + '...' + str(list(self.tok2ind.items())[-10:])
+
     def tokens(self):
         """Get dictionary tokens.
         Return all the words indexed by this dictionary, except for special
