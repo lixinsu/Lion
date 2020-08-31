@@ -63,7 +63,7 @@ class LionDataset(Dataset):
             # Not index words
             oriAtoken = ex['Atokens']
             oriBtoken = ex['Btokens']
-        if self.args.network == 'xlnet':
+        if self.args.network == 'xlnet' or self.args.network == 'roberta':
             Atoken = torch.LongTensor(ex['Atokens'])
             Btoken = torch.LongTensor(ex['Btokens'])
             Achar = torch.zeros(len(ex['Atokens']), 16)

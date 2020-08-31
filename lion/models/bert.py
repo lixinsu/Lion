@@ -112,6 +112,8 @@ class BertPreTrainedModel(nn.Module):
     """ An abstract class to handle weights initialization and
         a simple interface for dowloading and loading pretrained models.
     """
+    base_model_prefix = "bert"
+
     def __init__(self, config, *inputs, **kwargs):
         super(BertPreTrainedModel, self).__init__()
         if not isinstance(config, BertConfig):
@@ -165,7 +167,7 @@ class BertPreTrainedModel(nn.Module):
                 (ex: num_labels for BertForSequenceClassification)
         """
         # Load config
-        config_file = os.path.join(pretrained_model_path, 'bert_config.json')
+        config_file = os.path.join(pretrained_model_path, '{}_config.json'.format(cls.base_model_prefix))
         if not os.path.exists(config_file):
             # Backward compatibility with old naming format
             config_file = os.path.join(pretrained_model_path, 'config.json')
@@ -211,8 +213,8 @@ class BertPreTrainedModel(nn.Module):
                 if child is not None:
                     load(child, prefix + name + '.')
         start_prefix = ''
-        if not hasattr(model, 'bert') and any(s.startswith('bert.') for s in state_dict.keys()):
-            start_prefix = 'bert.'
+        if not hasattr(model, cls.base_model_prefix) and any(s.startswith(cls.base_model_prefix) for s in state_dict.keys()):
+            start_prefix = cls.base_model_prefix + '.'
         load(model, prefix=start_prefix)
         if len(missing_keys) > 0:
             logger.info("Weights of {} not initialized from pretrained model: {}".format(
@@ -239,10 +241,11 @@ class BertEmbeddings(nn.Module):
         self.LayerNorm = LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
-    def forward(self, input_ids, token_type_ids=None):
+    def forward(self, input_ids, token_type_ids=None, position_ids=None):
         seq_length = input_ids.size(1)
-        position_ids = torch.arange(seq_length, dtype=torch.long, device=input_ids.device)
-        position_ids = position_ids.unsqueeze(0).expand_as(input_ids)
+        if position_ids is None:
+            position_ids = torch.arange(seq_length, dtype=torch.long, device=input_ids.device)
+            position_ids = position_ids.unsqueeze(0).expand_as(input_ids)
         if token_type_ids is None:
             token_type_ids = torch.zeros_like(input_ids)
 

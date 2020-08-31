@@ -7,6 +7,7 @@ from .bimpm import BIMPM
 from .esim import ESIM
 from .bert import BertForSequenceClassification
 from .xlnet import XLNetForSequenceClassification
+from .roberta import RobertaForSequenceClassification
 
 
 def get_model_class(name):
@@ -20,4 +21,6 @@ def get_model_class(name):
         return BertForSequenceClassification
     if name == 'xlnet':
         return XLNetForSequenceClassification
+    if name == 'roberta':
+        return RobertaForSequenceClassification
     raise RuntimeError('Invalid model %s' % name)
